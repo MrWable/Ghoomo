@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TOURIST
+  GUIDE
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum GuideVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id              String        @id @default(cuid())
+  fullName        String
+  email           String        @unique
+  passwordHash    String
+  phone           String?
+  role            UserRole      @default(TOURIST)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  guideProfile    GuideProfile?
+  touristBookings Booking[]     @relation("TouristBookings")
+  reviews         Review[]
+}
+
+model GuideProfile {
+  id                 String                  @id @default(cuid())
+  userId             String                  @unique
+  city               String
+  languages          String[]
+  specialties        String[]
+  bio                String?
+  hourlyRate         Int?
+  verificationStatus GuideVerificationStatus @default(PENDING)
+  isVerified         Boolean                 @default(false)
+  isAvailable        Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  bookings           Booking[]
+  itineraries        Itinerary[]
+  reviews            Review[]
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  touristId      String
+  guideProfileId String
+  travelDate     DateTime
+  message        String?
+  status         BookingStatus @default(PENDING)
+  totalAmount    Int?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  guideProfile   GuideProfile  @relation(fields: [guideProfileId], references: [id], onDelete: Cascade)
+  tourist        User          @relation("TouristBookings", fields: [touristId], references: [id], onDelete: Cascade)
+  itinerary      Itinerary?
+}
+
+model Itinerary {
+  id             String       @id @default(cuid())
+  guideProfileId String
+  bookingId      String?      @unique
+  title          String
+  summary        String?
+  stops          Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  booking        Booking?     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  guideProfile   GuideProfile @relation(fields: [guideProfileId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id             String       @id @default(cuid())
+  touristId      String
+  guideProfileId String
+  rating         Int
+  comment        String?
+  createdAt      DateTime     @default(now())
+  guideProfile   GuideProfile @relation(fields: [guideProfileId], references: [id], onDelete: Cascade)
+  tourist        User         @relation(fields: [touristId], references: [id], onDelete: Cascade)
+
+  @@unique([touristId, guideProfileId])
+}

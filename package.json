@@ -1,0 +1,17 @@
+{
+  "name": "ghoomo",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel --if-present dev",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "format": "pnpm -r --if-present format",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @ghoomo/db db:generate",
+    "db:migrate": "pnpm --filter @ghoomo/db db:migrate",
+    "db:seed": "pnpm --filter @ghoomo/db db:seed",
+    "db:studio": "pnpm --filter @ghoomo/db db:studio"
+  }
+}
