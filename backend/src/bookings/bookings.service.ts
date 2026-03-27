@@ -70,7 +70,7 @@ export class BookingsService {
 
   async getMyBookings(user: AuthenticatedUser) {
     const where =
-      user.role === UserRole.TOURIST
+      user.role === UserRole.TOURIST || user.role === UserRole.USER
         ? { touristId: user.id }
         : user.role === UserRole.GUIDE
           ? { guideProfile: { is: { userId: user.id } } }

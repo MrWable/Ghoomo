@@ -8,9 +8,10 @@ export function getPostLoginPath(role: UserRole) {
       return '/admin';
     case 'GUIDE':
       return '/guides';
+    case 'USER':
     case 'TOURIST':
     default:
-      return '/guides';
+      return '/';
   }
 }
 

@@ -1,0 +1,27 @@
+<svg width="900" height="700" viewBox="0 0 900 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ridgeSky" x1="92" y1="54" x2="706" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFDAB6"/>
+      <stop offset="0.52" stop-color="#EFD8BD"/>
+      <stop offset="1" stop-color="#9BC1B8"/>
+    </linearGradient>
+    <linearGradient id="ridgeHill" x1="242" y1="292" x2="630" y2="678" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#274C45"/>
+      <stop offset="1" stop-color="#10211D"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="700" rx="36" fill="url(#ridgeSky)"/>
+  <circle cx="688" cy="150" r="70" fill="#FFF0D5"/>
+  <path d="M0 470C116 390 204 348 300 354C408 362 486 438 590 446C694 454 776 392 900 286V700H0V470Z" fill="url(#ridgeHill)"/>
+  <path d="M0 566C112 512 228 488 338 512C458 540 542 606 648 604C744 600 822 550 900 488V700H0V566Z" fill="#18352F"/>
+  <path d="M280 214L360 136L452 214H280Z" fill="#FFF8ED" fill-opacity="0.86"/>
+  <path d="M388 256L476 166L598 256H388Z" fill="#FFF8ED" fill-opacity="0.76"/>
+  <path d="M520 228L602 150L706 228H520Z" fill="#FFF8ED" fill-opacity="0.6"/>
+  <path d="M304 602C350 550 404 534 464 550C524 566 566 614 638 610" stroke="#FDE5C4" stroke-width="12" stroke-linecap="round" stroke-dasharray="10 16"/>
+  <circle cx="302" cy="602" r="18" fill="#FFF4E1"/>
+  <circle cx="302" cy="602" r="8" fill="#D66F38"/>
+  <rect x="54" y="54" width="214" height="76" rx="22" fill="#10211D" fill-opacity="0.78"/>
+  <text x="84" y="88" fill="#FFD7B3" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">HILL CIRCUIT</text>
+  <text x="84" y="116" fill="#FFF7EC" font-family="Arial, sans-serif" font-size="28" font-weight="700">Ridge walks and lookout points</text>
+</svg>

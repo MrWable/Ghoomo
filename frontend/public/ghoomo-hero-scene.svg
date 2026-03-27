@@ -1,0 +1,72 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="heroBg" x1="94" y1="76" x2="1060" y2="840" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE2BF"/>
+      <stop offset="0.48" stop-color="#F8F3EA"/>
+      <stop offset="1" stop-color="#D7ECE6"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="206" y1="420" x2="842" y2="840" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#264C45"/>
+      <stop offset="1" stop-color="#0D1715"/>
+    </linearGradient>
+    <linearGradient id="sand" x1="236" y1="454" x2="748" y2="788" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7B981"/>
+      <stop offset="1" stop-color="#D66F38"/>
+    </linearGradient>
+    <linearGradient id="card" x1="756" y1="234" x2="1052" y2="632" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8EE"/>
+      <stop offset="1" stop-color="#F1E7D8"/>
+    </linearGradient>
+    <linearGradient id="river" x1="332" y1="546" x2="678" y2="808" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBE6C6"/>
+      <stop offset="1" stop-color="#FAEBD9" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blurShadow" x="0" y="0" width="1200" height="900" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="40"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="900" rx="56" fill="url(#heroBg)"/>
+  <circle cx="932" cy="166" r="92" fill="#FFF4D8"/>
+  <circle cx="932" cy="166" r="62" fill="#FFD08E"/>
+  <g opacity="0.26" filter="url(#blurShadow)">
+    <circle cx="178" cy="152" r="74" fill="#E18B49"/>
+    <circle cx="1048" cy="716" r="104" fill="#1D6A59"/>
+  </g>
+
+  <path d="M86 624C212 498 348 458 484 496C618 534 718 624 854 616C936 610 1012 562 1112 492V900H86V624Z" fill="url(#hill)"/>
+  <path d="M160 724C268 632 378 594 504 612C622 628 742 708 878 694C958 686 1034 646 1114 582V900H160V724Z" fill="#14342E"/>
+  <path d="M264 638C350 540 430 500 518 516C602 532 678 628 782 618C844 612 900 576 978 512V900H264V638Z" fill="url(#sand)"/>
+  <path d="M326 706C388 650 460 642 540 670C616 696 674 750 758 744C812 740 856 714 914 670V900H326V706Z" fill="url(#river)" opacity="0.86"/>
+
+  <path d="M748 166H1048C1074.51 166 1096 187.49 1096 214V586C1096 612.51 1074.51 634 1048 634H748C721.49 634 700 612.51 700 586V214C700 187.49 721.49 166 748 166Z" fill="url(#card)"/>
+  <path d="M732 190H1064C1078.91 190 1091 202.09 1091 217V574C1091 588.91 1078.91 601 1064 601H732C717.09 601 705 588.91 705 574V217C705 202.09 717.09 190 732 190Z" stroke="#E2D3C1" stroke-width="2"/>
+
+  <rect x="756" y="224" width="92" height="34" rx="17" fill="#183C35"/>
+  <text x="783" y="246" fill="#FFF4E5" font-family="Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="2">LIVE</text>
+  <text x="756" y="316" fill="#13211D" font-family="Arial, sans-serif" font-size="86" font-weight="900" letter-spacing="-6">GHOOMO</text>
+  <text x="756" y="364" fill="#5D6C64" font-family="Arial, sans-serif" font-size="26" font-weight="500">Verified local guides. Real cities. Better trips.</text>
+
+  <rect x="756" y="416" width="136" height="122" rx="28" fill="#FAF0E2"/>
+  <rect x="910" y="416" width="136" height="122" rx="28" fill="#14342E"/>
+  <rect x="756" y="554" width="290" height="40" rx="20" fill="#F3E1CC"/>
+  <rect x="778" y="448" width="92" height="14" rx="7" fill="#E8D3B8"/>
+  <rect x="778" y="474" width="58" height="14" rx="7" fill="#E8D3B8"/>
+  <rect x="932" y="452" width="94" height="12" rx="6" fill="#FFF8EE" fill-opacity="0.62"/>
+  <rect x="932" y="476" width="64" height="12" rx="6" fill="#FFF8EE" fill-opacity="0.62"/>
+  <rect x="932" y="510" width="76" height="18" rx="9" fill="#CF6A32"/>
+
+  <path d="M376 408C472 330 598 332 680 394C734 434 778 494 834 518" stroke="#F5EFE4" stroke-width="14" stroke-linecap="round" stroke-dasharray="12 20"/>
+  <circle cx="372" cy="410" r="26" fill="#FFF8EE"/>
+  <circle cx="372" cy="410" r="12" fill="#CF6A32"/>
+  <circle cx="836" cy="520" r="30" fill="#14342E"/>
+  <circle cx="836" cy="520" r="12" fill="#FFE6C8"/>
+
+  <rect x="154" y="168" width="206" height="82" rx="24" fill="#FFF7EC" fill-opacity="0.88"/>
+  <text x="182" y="205" fill="#CF6A32" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">CURRENTLY LIVE</text>
+  <text x="182" y="234" fill="#183C35" font-family="Arial, sans-serif" font-size="26" font-weight="700">Pune  Nashik  Kolhapur</text>
+
+  <rect x="140" y="288" width="188" height="98" rx="28" fill="#183C35" fill-opacity="0.92"/>
+  <text x="170" y="330" fill="#FFF0DB" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">GUIDE MODE</text>
+  <text x="170" y="366" fill="#FFF7EC" font-family="Arial, sans-serif" font-size="42" font-weight="800">03 cities</text>
+</svg>

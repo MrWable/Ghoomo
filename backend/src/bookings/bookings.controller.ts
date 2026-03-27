@@ -11,7 +11,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
-  @Roles(UserRole.TOURIST)
+  @Roles(UserRole.TOURIST, UserRole.USER)
   @Post()
   create(
     @CurrentUser() user: AuthenticatedUser,

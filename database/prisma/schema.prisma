@@ -10,6 +10,7 @@ datasource db {
 
 enum UserRole {
   TOURIST
+  USER
   GUIDE
   ADMIN
 }
@@ -33,7 +34,7 @@ model User {
   email           String        @unique
   passwordHash    String
   phone           String?
-  role            UserRole      @default(TOURIST)
+  role            UserRole      @default(USER)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   guideProfile    GuideProfile?
@@ -49,6 +50,14 @@ model GuideProfile {
   specialties        String[]
   bio                String?
   hourlyRate         Int?
+  aadhaarNumber      String?
+  panNumber          String?
+  aadhaarImageBase64 String?                 @db.Text
+  aadhaarImageMimeType String?
+  panImageBase64     String?                 @db.Text
+  panImageMimeType   String?
+  passportPhotoBase64 String?                @db.Text
+  passportPhotoMimeType String?
   verificationStatus GuideVerificationStatus @default(PENDING)
   isVerified         Boolean                 @default(false)
   isAvailable        Boolean                 @default(true)
@@ -58,6 +67,36 @@ model GuideProfile {
   itineraries        Itinerary[]
   reviews            Review[]
   user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model City {
+  id            String      @id @default(cuid())
+  name          String
+  slug          String      @unique
+  summary       String?
+  imageBase64   String      @db.Text
+  imageMimeType String
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  places        CityPlace[]
+}
+
+model CityPlace {
+  id            String   @id @default(cuid())
+  cityId        String
+  name          String
+  slug          String
+  summary       String?
+  imageBase64   String   @db.Text
+  imageMimeType String
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  city          City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@unique([cityId, slug])
+  @@index([cityId, displayOrder])
 }
 
 model Booking {

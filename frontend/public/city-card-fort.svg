@@ -1,0 +1,34 @@
+<svg width="900" height="700" viewBox="0 0 900 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fortSky" x1="92" y1="50" x2="744" y2="670" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE5C5"/>
+      <stop offset="0.48" stop-color="#F6EBDD"/>
+      <stop offset="1" stop-color="#BBD8D0"/>
+    </linearGradient>
+    <linearGradient id="fortStone" x1="284" y1="224" x2="594" y2="634" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2A4C45"/>
+      <stop offset="1" stop-color="#12231F"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="700" rx="36" fill="url(#fortSky)"/>
+  <circle cx="706" cy="128" r="74" fill="#FFF3DD"/>
+  <path d="M0 500C128 424 274 404 396 450C520 498 616 578 740 576C798 576 850 558 900 528V700H0V500Z" fill="#21453E"/>
+  <path d="M0 584C112 552 240 548 350 572C470 598 556 648 664 646C754 646 830 622 900 592V700H0V584Z" fill="#10221E"/>
+  <path d="M252 270H648V562H252V270Z" fill="url(#fortStone)"/>
+  <path d="M252 270L310 214H590L648 270H252Z" fill="#335A52"/>
+  <path d="M318 332H386V562H318V332Z" fill="#E8D1B7"/>
+  <path d="M514 332H582V562H514V332Z" fill="#E8D1B7"/>
+  <rect x="410" y="360" width="80" height="202" rx="14" fill="#E8D1B7"/>
+  <path d="M266 240H322V304H266V240Z" fill="#17342E"/>
+  <path d="M578 240H634V304H578V240Z" fill="#17342E"/>
+  <path d="M438 162L484 104L530 162H438Z" fill="#CF6A32"/>
+  <rect x="468" y="162" width="32" height="118" rx="16" fill="#E38B52"/>
+  <path d="M466 202H534L500 230L466 202Z" fill="#FFE6C8"/>
+  <path d="M110 594C170 548 234 536 296 558C358 580 404 624 466 620" stroke="#FDE4C1" stroke-width="12" stroke-linecap="round" stroke-dasharray="12 16"/>
+  <circle cx="108" cy="594" r="18" fill="#FFF4E1"/>
+  <circle cx="108" cy="594" r="8" fill="#D66F38"/>
+  <rect x="56" y="56" width="226" height="76" rx="22" fill="#FFF7EC" fill-opacity="0.9"/>
+  <text x="86" y="90" fill="#CF6A32" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">FORT CIRCUIT</text>
+  <text x="86" y="118" fill="#173730" font-family="Arial, sans-serif" font-size="28" font-weight="700">Heritage routes and old city stories</text>
+</svg>

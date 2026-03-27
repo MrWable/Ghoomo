@@ -24,7 +24,7 @@ export class RegisterDto {
   password!: string;
 
   @IsEnum(UserRole)
-  role: UserRole = UserRole.TOURIST;
+  role: UserRole = UserRole.USER;
 
   @IsOptional()
   @IsString()
@@ -54,4 +54,36 @@ export class RegisterDto {
   @ArrayUnique()
   @IsString({ each: true })
   specialties?: string[];
+
+  @IsOptional()
+  @IsString()
+  aadhaarNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  panNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  aadhaarImageBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  aadhaarImageMimeType?: string;
+
+  @IsOptional()
+  @IsString()
+  panImageBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  panImageMimeType?: string;
+
+  @IsOptional()
+  @IsString()
+  passportPhotoBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  passportPhotoMimeType?: string;
 }

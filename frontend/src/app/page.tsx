@@ -1,172 +1,157 @@
-import Link from "next/link";
-import { getGuides, getHealthStatus, type Guide } from "@/lib/api";
+import Image from 'next/image';
+import Link from 'next/link';
+import { getCities } from '@/lib/api';
+import { CityCoverageRail } from '@/components/city-coverage-rail';
+import { HomeHeaderNav } from '@/components/home-header-nav';
 
-export const dynamic = "force-dynamic";
-
-function GuideCard({ guide }: { guide: Guide }) {
-  return (
-    <article className="glass-panel rounded-[28px] p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-[var(--muted)]">{guide.city}</p>
-          <h3 className="mt-1 text-2xl font-semibold tracking-tight">
-            {guide.user.fullName}
-          </h3>
-        </div>
-        <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-[var(--accent-strong)]">
-          {guide.isAvailable ? "Available" : "Busy"}
-        </span>
-      </div>
-      <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
-        {guide.bio ?? "Local guide profile ready for itinerary and booking workflows."}
-      </p>
-      <div className="mt-5 flex flex-wrap gap-2">
-        {guide.specialties.slice(0, 3).map((specialty) => (
-          <span
-            key={specialty}
-            className="rounded-full border border-[var(--line)] px-3 py-1 text-xs font-medium"
-          >
-            {specialty}
-          </span>
-        ))}
-      </div>
-      <div className="mt-6 flex items-center justify-between text-sm">
-        <span className="font-mono text-[var(--muted)]">
-          {guide.hourlyRate ? `INR ${guide.hourlyRate}/hr` : "Rate on request"}
-        </span>
-        <span className="font-medium">
-          {guide.averageRating ? `${guide.averageRating} / 5` : "New profile"}
-        </span>
-      </div>
-    </article>
-  );
-}
+export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const [health, guides] = await Promise.all([getHealthStatus(), getGuides()]);
-  const featuredGuides = guides.slice(0, 2);
-  const cityCoverage = Array.from(
-    guides.reduce((cities, guide) => {
-      const existing = cities.get(guide.city) ?? {
-        city: guide.city,
-        guideCount: 0,
-        startingRate: guide.hourlyRate,
-      };
+  const cities = await getCities();
+  const cityCoverage = cities;
+  const totalPlaces = cityCoverage.reduce(
+    (count, city) => count + city.placeCount,
+    0,
+  );
 
-      existing.guideCount += 1;
+  const startingRate = cityCoverage.reduce<number | null>((current, city) => {
+    if (!city.startingRate) {
+      return current;
+    }
 
-      if (
-        guide.hourlyRate &&
-        (!existing.startingRate || guide.hourlyRate < existing.startingRate)
-      ) {
-        existing.startingRate = guide.hourlyRate;
-      }
+    if (!current || city.startingRate < current) {
+      return city.startingRate;
+    }
 
-      cities.set(guide.city, existing);
-      return cities;
-    }, new Map<string, { city: string; guideCount: number; startingRate: number | null }>()),
-  ).map(([, value]) => value);
+    return current;
+  }, null);
 
   return (
-    <main className="pb-16 pt-8">
-      <div className="page-shell">
-        <header className="glass-panel flex items-center justify-between rounded-full px-5 py-3">
-          <Link href="/" className="font-mono text-sm uppercase tracking-[0.2em]">
-            Ghoomo
+    <main className="pb-20 pt-6">
+      <div className="page-shell space-y-8">
+        <header className="glass-panel flex flex-wrap items-center justify-between gap-4 rounded-[32px] px-5 py-3">
+          <Link href="/" className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-black uppercase text-[var(--on-accent)]">
+              G
+            </span>
+            <span className="font-mono text-sm uppercase tracking-[0.2em]">Ghoomo</span>
           </Link>
-          <nav className="flex items-center gap-5 text-sm text-[var(--muted)]">
-            <Link href="/guides">Guides</Link>
-            <Link href="/guides/register">Become a guide</Link>
-            <Link href="/login">Login</Link>
-            <Link href="/admin">Admin</Link>
-            <a href="http://localhost:4000/api/v1/health" target="_blank" rel="noreferrer">
-              API
-            </a>
-          </nav>
+
+          <HomeHeaderNav />
         </header>
 
-        <section className="grid gap-6 py-10 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="glass-panel rounded-[36px] p-8 md:p-12">
-            <p className="eyebrow">On-demand local guide platform</p>
-            <h1 className="section-title mt-5 max-w-3xl">
-              Start the Ghoomo MVP with separate frontend, backend, and database layers.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--muted)]">
-              This first milestone trims the report down to the core product: guide
-              discovery, account roles, bookings, and a clean PostgreSQL-backed foundation
-              for future features like payments, itinerary approval, and admin workflows.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/guides"
-                className="rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
-              >
-                Explore starter guides
-              </Link>
-              <Link
-                href="/login"
-                className="rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold"
-              >
-                Login as admin
-              </Link>
-              <Link
-                href="/guides/register"
-                className="rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold"
-              >
-                Register as guide
-              </Link>
-              <a
-                href="http://localhost:4000/api/v1/health"
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full border border-[var(--line)] px-5 py-3 text-sm font-semibold"
-              >
-                Check API health
-              </a>
+        {cityCoverage.length > 0 ? (
+          <CityCoverageRail cities={cityCoverage} />
+        ) : (
+          <section className="py-2">
+            <div className="glass-panel rounded-[28px] p-6 text-[var(--muted)]">
+              No live cities have been added yet. Use the admin dashboard to create city
+              cards with images.
+            </div>
+          </section>
+        )}
+
+        <section className="hero-shell relative overflow-hidden rounded-[44px] px-6 py-8 md:px-10 md:py-12">
+          <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <div>
+              <p className="eyebrow">Cities live on Ghoomo right now</p>
+              <h1 className="hero-wordmark mt-5">GHOOMO</h1>
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--muted)]">
+                Explore the live cities, see the saved places inside each one, and create an
+                account before you start booking with local guides. Guide cards are private to
+                the guide and the admin dashboard.
+              </p>
+
+              <div className="mt-6 flex flex-wrap gap-2">
+                {cityCoverage.slice(0, 5).map((city) => (
+                  <span
+                    key={city.id}
+                    className="tag-soft rounded-full px-4 py-2 text-sm font-medium"
+                  >
+                    {city.name}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/register"
+                  className="button-primary rounded-full px-5 py-3 text-sm font-semibold"
+                >
+                  Register as user
+                </Link>
+                <Link
+                  href="/guides/register"
+                  className="button-secondary rounded-full px-5 py-3 text-sm font-semibold"
+                >
+                  Become a guide
+                </Link>
+              </div>
+
+              <div className="mt-10 grid gap-3 sm:grid-cols-3">
+                <div className="glass-panel rounded-[24px] p-4">
+                  <p className="text-sm text-[var(--muted)]">Live cities</p>
+                  <p className="mt-2 text-3xl font-semibold">{cityCoverage.length}</p>
+                </div>
+                <div className="glass-panel rounded-[24px] p-4">
+                  <p className="text-sm text-[var(--muted)]">Saved places</p>
+                  <p className="mt-2 text-3xl font-semibold">{totalPlaces}</p>
+                </div>
+                <div className="glass-panel rounded-[24px] p-4">
+                  <p className="text-sm text-[var(--muted)]">Starting rate</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {startingRate ? `INR ${startingRate}` : "TBD"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              {/* <div className="floating-panel panel-tint-strong mb-3 rounded-[24px] px-4 py-3 shadow-xl backdrop-blur md:absolute md:-left-3 md:top-6 md:z-10 md:mb-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+                  Platform status
+                </p>
+                <p className="mt-2 text-sm font-medium">
+                  {health ? `${health.status} / db ${health.database}` : "Backend unavailable"}
+                </p>
+              </div> */}
+
+              <div className="glass-panel overflow-hidden rounded-[36px] p-4 md:p-5">
+                <Image
+                  src="/ghoomo-hero-scene.svg"
+                  alt="Illustrated Ghoomo travel collage"
+                  width={1200}
+                  height={900}
+                  className="h-full w-full rounded-[28px] object-cover"
+                  priority
+                />
+              </div>
+
+              <div className="floating-panel contrast-panel mt-3 rounded-[24px] px-4 py-3 shadow-xl md:absolute md:bottom-4 md:right-4 md:mt-0">
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--contrast-muted)]">
+                  Currently live
+                </p>
+                <p className="mt-2 text-lg font-semibold">
+                  {cityCoverage.map((city) => city.name).slice(0, 3).join(" • ") || "Launching soon"}
+                </p>
+              </div>
             </div>
           </div>
-
-          <aside className="glass-panel rounded-[36px] p-8">
-            <p className="eyebrow">System snapshot</p>
-            <div className="mt-6 space-y-5">
-              <div>
-                <p className="text-sm text-[var(--muted)]">Frontend</p>
-                <p className="mt-1 text-xl font-semibold">Next.js + TypeScript</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--muted)]">Backend</p>
-                <p className="mt-1 text-xl font-semibold">NestJS + Fastify</p>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--muted)]">Database</p>
-                <p className="mt-1 text-xl font-semibold">PostgreSQL + Prisma</p>
-              </div>
-              <div className="rounded-[24px] border border-[var(--line)] bg-white/60 p-4">
-                <p className="text-sm text-[var(--muted)]">Backend status</p>
-                <p className="mt-2 text-lg font-semibold">
-                  {health ? `${health.status} / db ${health.database}` : "Backend not reachable yet"}
-                </p>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  {health?.timestamp ?? "Start the API and database to populate live status."}
-                </p>
-              </div>
-            </div>
-          </aside>
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
           {[
             {
-              title: "Tourist flow",
-              copy: "Browse verified guides, compare rates, and place bookings with a simple API contract.",
+              title: "City-first discovery",
+              copy: "The home screen now reflects the cities activated by admin instead of placeholder geography.",
             },
             {
-              title: "Guide flow",
-              copy: "Register, manage availability, and accept or reject booking requests from one backend.",
+              title: "Role-based access",
+              copy: "Normal users land on the home page, guides see only their own card, and the full guide table stays inside admin.",
             },
             {
-              title: "Admin-ready base",
-              copy: "Role structure and schema are in place so verification and moderation can be added cleanly.",
+              title: "Admin-managed",
+              copy: "Cities, summaries, places, and guide approvals are controlled from the admin dashboard and rendered directly from database data.",
             },
           ].map((item) => (
             <article key={item.title} className="glass-panel rounded-[28px] p-6">
@@ -174,76 +159,6 @@ export default async function Home() {
               <p className="mt-4 text-base leading-7 text-[var(--muted)]">{item.copy}</p>
             </article>
           ))}
-        </section>
-
-        <section className="py-12">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="eyebrow">Current city coverage</p>
-              <h2 className="section-title mt-4 text-[2.3rem]">
-                Cities where verified guides are live right now.
-              </h2>
-            </div>
-            <p className="text-sm font-semibold text-[var(--accent-strong)]">
-              {cityCoverage.length} active cities
-            </p>
-          </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {cityCoverage.length > 0 ? (
-              cityCoverage.map((city) => (
-                <article key={city.city} className="glass-panel rounded-[28px] p-6">
-                  <p className="eyebrow">Live city</p>
-                  <h3 className="mt-4 text-2xl font-semibold">{city.city}</h3>
-                  <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-                    {city.guideCount} verified {city.guideCount === 1 ? "guide" : "guides"} currently available for public discovery.
-                  </p>
-                  <p className="mt-5 text-sm font-medium text-[var(--accent-strong)]">
-                    {city.startingRate ? `From INR ${city.startingRate}/hr` : "Rate on request"}
-                  </p>
-                </article>
-              ))
-            ) : (
-              <div className="glass-panel rounded-[28px] p-6 text-[var(--muted)]">
-                No approved guide cities yet. Approve a guide from the admin dashboard to make a city live.
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="py-12">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="eyebrow">Seeded guide previews</p>
-              <h2 className="section-title mt-4 text-[2.3rem]">Use real sample data from day one.</h2>
-            </div>
-            <Link href="/guides" className="text-sm font-semibold text-[var(--accent-strong)]">
-              View all guides
-            </Link>
-          </div>
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            {featuredGuides.length > 0 ? (
-              featuredGuides.map((guide) => <GuideCard key={guide.id} guide={guide} />)
-            ) : (
-              <div className="glass-panel rounded-[28px] p-6 text-[var(--muted)]">
-                Run the database migration and seed to see guide cards here.
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="glass-panel rounded-[36px] p-8 md:p-10">
-          <p className="eyebrow">Deferred for later phases</p>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {["Payment gateway", "Real-time tracking", "Admin dashboard"].map((item) => (
-              <div key={item} className="rounded-[24px] border border-[var(--line)] bg-white/60 p-5">
-                <h3 className="text-lg font-semibold">{item}</h3>
-                <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                  Kept out of the first milestone so the team can stabilize auth, guides,
-                  bookings, and schema first.
-                </p>
-              </div>
-            ))}
-          </div>
         </section>
       </div>
     </main>

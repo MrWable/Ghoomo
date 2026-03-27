@@ -1,0 +1,26 @@
+<svg width="900" height="700" viewBox="0 0 900 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="riverSky" x1="112" y1="38" x2="760" y2="684" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE8C8"/>
+      <stop offset="0.42" stop-color="#EAF3EE"/>
+      <stop offset="1" stop-color="#B8D8D3"/>
+    </linearGradient>
+    <linearGradient id="riverWater" x1="372" y1="286" x2="572" y2="698" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDF6E7"/>
+      <stop offset="1" stop-color="#DADDC8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="700" rx="36" fill="url(#riverSky)"/>
+  <circle cx="724" cy="130" r="84" fill="#FFF5DF"/>
+  <path d="M0 430C144 368 270 370 382 430C468 476 536 546 636 564C726 580 806 552 900 478V700H0V430Z" fill="#254740"/>
+  <path d="M0 550C110 520 222 516 332 544C444 574 516 626 608 634C720 642 820 586 900 540V700H0V550Z" fill="#14332D"/>
+  <path d="M438 248C502 308 522 382 498 464C478 534 430 606 430 700H624C624 602 692 520 714 434C740 336 710 248 638 184L438 248Z" fill="url(#riverWater)"/>
+  <path d="M470 230C540 288 560 366 536 450C518 512 478 570 476 700" stroke="#F6E5C5" stroke-width="14" stroke-linecap="round"/>
+  <path d="M116 584C172 538 232 526 294 548C356 570 404 612 458 608" stroke="#FADDB8" stroke-width="12" stroke-linecap="round" stroke-dasharray="12 16"/>
+  <circle cx="112" cy="584" r="18" fill="#FFF4E1"/>
+  <circle cx="112" cy="584" r="8" fill="#D66F38"/>
+  <rect x="58" y="58" width="214" height="76" rx="22" fill="#FFF7EC" fill-opacity="0.9"/>
+  <text x="88" y="92" fill="#CF6A32" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">RIVER LOOP</text>
+  <text x="88" y="120" fill="#173730" font-family="Arial, sans-serif" font-size="28" font-weight="700">Waterfront walks and old bridges</text>
+</svg>

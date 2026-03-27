@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeSwitcher } from "@/components/theme-switcher";
+import { THEME_INITIALIZER_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -27,8 +30,19 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${manrope.variable} ${plexMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <script dangerouslySetInnerHTML={{ __html: THEME_INITIALIZER_SCRIPT }} />
+        <ThemeProvider>
+          <div className="page-shell relative z-[90] pt-4">
+            <div className="flex justify-end">
+              <ThemeSwitcher />
+            </div>
+          </div>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

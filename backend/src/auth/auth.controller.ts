@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
+import { UserRole } from '@ghoomo/db';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
@@ -22,8 +25,20 @@ export class AuthController {
     return this.authService.login(input);
   }
 
+  @Public()
+  @Post('google')
+  googleLogin(@Body() input: GoogleLoginDto) {
+    return this.authService.loginWithGoogle(input);
+  }
+
   @Get('me')
   me(@CurrentUser() user: AuthenticatedUser) {
     return user;
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Get('admin/users')
+  findUsersForAdmin() {
+    return this.authService.findUsersForAdmin();
   }
 }

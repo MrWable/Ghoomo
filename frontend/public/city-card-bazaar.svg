@@ -1,0 +1,33 @@
+<svg width="900" height="700" viewBox="0 0 900 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bazaarSky" x1="74" y1="42" x2="744" y2="666" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFDFBE"/>
+      <stop offset="0.44" stop-color="#F7E8D7"/>
+      <stop offset="1" stop-color="#C4DED2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="700" rx="36" fill="url(#bazaarSky)"/>
+  <circle cx="716" cy="134" r="76" fill="#FFF0D5"/>
+  <rect x="94" y="314" width="126" height="248" rx="18" fill="#18352F"/>
+  <rect x="240" y="270" width="144" height="292" rx="18" fill="#274C45"/>
+  <rect x="404" y="228" width="144" height="334" rx="18" fill="#18352F"/>
+  <rect x="568" y="292" width="126" height="270" rx="18" fill="#274C45"/>
+  <rect x="714" y="350" width="92" height="212" rx="18" fill="#18352F"/>
+  <path d="M78 562H820V700H78V562Z" fill="#10211D"/>
+  <path d="M94 314H220V348L94 382V314Z" fill="#D66F38"/>
+  <path d="M240 270H384V318L240 360V270Z" fill="#F19B5F"/>
+  <path d="M404 228H548V282L404 326V228Z" fill="#CF6A32"/>
+  <path d="M568 292H694V334L568 370V292Z" fill="#F4B57C"/>
+  <path d="M714 350H806V382L714 414V350Z" fill="#E38B52"/>
+  <rect x="132" y="416" width="52" height="52" rx="10" fill="#F7D6B3"/>
+  <rect x="286" y="374" width="52" height="52" rx="10" fill="#FCE5CD"/>
+  <rect x="450" y="334" width="52" height="52" rx="10" fill="#F7D6B3"/>
+  <rect x="608" y="398" width="52" height="52" rx="10" fill="#FCE5CD"/>
+  <path d="M126 606C182 552 244 540 306 560C368 580 406 620 460 618" stroke="#FFE5C3" stroke-width="12" stroke-linecap="round" stroke-dasharray="12 16"/>
+  <circle cx="122" cy="606" r="18" fill="#FFF4E1"/>
+  <circle cx="122" cy="606" r="8" fill="#D66F38"/>
+  <rect x="56" y="56" width="236" height="76" rx="22" fill="#10211D" fill-opacity="0.8"/>
+  <text x="86" y="90" fill="#FFD7B3" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">BAZAAR STOPS</text>
+  <text x="86" y="118" fill="#FFF7EC" font-family="Arial, sans-serif" font-size="28" font-weight="700">Food lanes, markets, late-evening energy</text>
+</svg>
