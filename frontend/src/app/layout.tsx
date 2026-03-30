@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
+import Script from "next/script";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { THEME_INITIALIZER_SCRIPT } from "@/lib/theme";
@@ -33,7 +34,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <script dangerouslySetInnerHTML={{ __html: THEME_INITIALIZER_SCRIPT }} />
+        <Script id="theme-initializer" strategy="beforeInteractive">
+          {THEME_INITIALIZER_SCRIPT}
+        </Script>
         <ThemeProvider>
           <div className="page-shell relative z-[90] pt-4">
             <div className="flex justify-end">

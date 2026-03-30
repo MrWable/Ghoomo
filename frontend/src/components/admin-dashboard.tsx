@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import {
+  getMyBookings,
   createCity,
   getAdminUsers,
   getCitiesForAdmin,
@@ -13,6 +14,8 @@ import {
   updateGuideVerification,
   type AdminUserRecord,
   type AuthUser,
+  type Booking,
+  type BookingStatus,
   type City,
   type HealthStatus,
   type UserRole,
@@ -23,15 +26,17 @@ type DashboardState = {
   user: AuthUser | null;
   health: HealthStatus | null;
   allAccounts: AdminUserRecord[];
+  bookings: Booking[];
   cities: City[];
   isLoading: boolean;
   actionGuideId: string | null;
   error: string | null;
 };
 
-type DashboardView = 'cities' | 'guides';
+type DashboardView = 'cities' | 'guides' | 'bookings';
 type GuideStatusFilter = 'ALL' | NonNullable<AdminUserRecord['guideProfile']>['verificationStatus'];
 type GuideRoleFilter = 'ALL' | 'USER' | 'GUIDE' | 'ADMIN';
+type BookingStatusFilter = 'ALL' | BookingStatus;
 
 type CityFormState = {
   name: string;
@@ -99,8 +104,31 @@ function formatSubmittedDate(value?: string) {
   return value ? new Date(value).toLocaleDateString() : 'Not available';
 }
 
+function formatDateTime(value?: string | null) {
+  return value
+    ? new Intl.DateTimeFormat('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(new Date(value))
+    : 'Not scheduled';
+}
+
+function formatCurrency(amount: number | null) {
+  return amount == null
+    ? 'Quoted later'
+    : `INR ${amount.toLocaleString('en-IN')}`;
+}
+
 function formatUserRoleLabel(role: UserRole) {
   return role === 'TOURIST' ? 'USER' : role;
+}
+
+function formatBookingStatusLabel(status: BookingStatus) {
+  return status
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 const GUIDE_ROLE_OPTIONS: GuideRoleFilter[] = ['USER', 'GUIDE', 'ADMIN'];
@@ -144,6 +172,23 @@ function GuideStatusBadge({
   return (
     <span className={`${className} rounded-full px-3 py-1 text-xs font-semibold`}>
       {status}
+    </span>
+  );
+}
+
+function BookingStatusBadge({ status }: { status: BookingStatus }) {
+  const className =
+    status === 'PENDING'
+      ? 'warning-badge'
+      : status === 'CONFIRMED' || status === 'IN_PROGRESS'
+        ? 'status-badge'
+        : status === 'COMPLETED'
+          ? 'tag-soft'
+          : 'border border-[var(--error-border)] bg-[var(--error-soft)] text-[var(--error-text)]';
+
+  return (
+    <span className={`${className} rounded-full px-3 py-1 text-xs font-semibold`}>
+      {formatBookingStatusLabel(status)}
     </span>
   );
 }
@@ -422,6 +467,7 @@ export function AdminDashboard() {
     user: null,
     health: null,
     allAccounts: [],
+    bookings: [],
     cities: [],
     isLoading: true,
     actionGuideId: null,
@@ -437,19 +483,24 @@ export function AdminDashboard() {
     useState<GuideStatusFilter>('ALL');
   const [guideRoleFilter, setGuideRoleFilter] =
     useState<GuideRoleFilter>('ALL');
+  const [bookingCityFilter, setBookingCityFilter] = useState('ALL');
+  const [bookingStatusFilter, setBookingStatusFilter] =
+    useState<BookingStatusFilter>('ALL');
 
   async function loadDashboard(token: string) {
-    const [user, health, allAccounts, cities] = await Promise.all([
+    const [user, health, allAccounts, cities, bookings] = await Promise.all([
       getCurrentUser(token),
       getHealthStatus(),
       getAdminUsers(token),
       getCitiesForAdmin(token),
+      getMyBookings(token),
     ]);
 
     return {
       user,
       health,
       allAccounts,
+      bookings,
       cities,
     };
   }
@@ -839,6 +890,10 @@ export function AdminDashboard() {
   const approvedGuides = state.allAccounts.filter(
     (account) => account.guideProfile?.verificationStatus === 'APPROVED',
   );
+  const totalBookings = state.bookings.length;
+  const pendingBookings = state.bookings.filter(
+    (booking) => booking.status === 'PENDING',
+  );
   const guideCities = Array.from(
     new Set(
       state.allAccounts
@@ -867,6 +922,19 @@ export function AdminDashboard() {
     guideRoleFilter !== 'ALL';
   const selectedAccount =
     filteredAccounts.find((account) => account.id === selectedGuideId) ?? null;
+  const bookingCities = Array.from(
+    new Set(state.bookings.map((booking) => booking.guide.city).filter(Boolean)),
+  ).sort((left, right) => left.localeCompare(right));
+  const filteredBookings = state.bookings.filter((booking) => {
+    const matchesCity =
+      bookingCityFilter === 'ALL' || booking.guide.city === bookingCityFilter;
+    const matchesStatus =
+      bookingStatusFilter === 'ALL' || booking.status === bookingStatusFilter;
+
+    return matchesCity && matchesStatus;
+  });
+  const hasActiveBookingFilters =
+    bookingCityFilter !== 'ALL' || bookingStatusFilter !== 'ALL';
 
   useEffect(() => {
     setSelectedGuideId((current) => {
@@ -880,7 +948,7 @@ export function AdminDashboard() {
 
       return filteredAccounts[0].id;
     });
-  }, [guideCityFilter, guideStatusFilter, guideRoleFilter, state.allAccounts]);
+  }, [filteredAccounts]);
 
   if (state.isLoading) {
     return (
@@ -919,7 +987,7 @@ export function AdminDashboard() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <article className="glass-panel rounded-[28px] p-6">
             <p className="text-sm text-[var(--muted)]">Role</p>
             <p className="mt-2 text-2xl font-semibold">{state.user?.role}</p>
@@ -936,6 +1004,10 @@ export function AdminDashboard() {
             <p className="text-sm text-[var(--muted)]">Live cities</p>
             <p className="mt-2 text-2xl font-semibold">{liveCities}</p>
           </article>
+          <article className="glass-panel rounded-[28px] p-6">
+            <p className="text-sm text-[var(--muted)]">Total bookings</p>
+            <p className="mt-2 text-2xl font-semibold">{totalBookings}</p>
+          </article>
         </section>
 
         {state.error ? (
@@ -948,12 +1020,18 @@ export function AdminDashboard() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="eyebrow">
-                {activeView === 'cities' ? 'Homepage cities' : 'Account directory'}
+                {activeView === 'cities'
+                  ? 'Homepage cities'
+                  : activeView === 'guides'
+                    ? 'Account directory'
+                    : 'Guide bookings'}
               </p>
               <h2 className="section-title mt-4 text-[2.2rem]">
                 {activeView === 'cities'
                   ? 'Configured city cards'
-                  : 'All accounts in one table'}
+                  : activeView === 'guides'
+                    ? 'All accounts in one table'
+                    : 'Every booking across all guides'}
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -966,6 +1044,11 @@ export function AdminDashboard() {
                 isActive={activeView === 'guides'}
                 onClick={() => setActiveView('guides')}
                 label="Guides"
+              />
+              <ViewToggleButton
+                isActive={activeView === 'bookings'}
+                onClick={() => setActiveView('bookings')}
+                label="Bookings"
               />
               <button
                 type="button"
@@ -1057,7 +1140,7 @@ export function AdminDashboard() {
                 )}
               </div>
             </>
-          ) : (
+          ) : activeView === 'guides' ? (
             <div className="mt-6 space-y-6">
               <div className="panel-tint rounded-[30px] p-5 md:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1258,6 +1341,181 @@ export function AdminDashboard() {
                   void handleVerification(guideId, status);
                 }}
               />
+            </div>
+          ) : (
+            <div className="mt-6 space-y-6">
+              <div className="panel-tint rounded-[30px] p-5 md:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="eyebrow">Booking overview</p>
+                    <h3 className="mt-3 text-xl font-semibold">
+                      Guide requests, confirmations, and completed tours
+                    </h3>
+                    <p className="mt-2 text-sm text-[var(--muted)]">
+                      This table combines bookings from every guide so admin can inspect
+                      volume and service status in one place.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="contrast-panel rounded-[22px] px-4 py-3 text-sm shadow-none">
+                      {filteredBookings.length}{' '}
+                      {filteredBookings.length === 1 ? 'booking' : 'bookings'} shown
+                    </div>
+                    <div className="rounded-[22px] border border-[var(--line)] bg-[var(--surface-pill)] px-4 py-3 text-sm text-[var(--muted)]">
+                      Pending: {pendingBookings.length}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="panel-tint-strong mt-5 rounded-[24px] p-4">
+                  <div className="grid gap-4 xl:grid-cols-[1fr_1fr_auto] xl:items-end">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+                        Guide city
+                      </span>
+                      <select
+                        value={bookingCityFilter}
+                        onChange={(event) => setBookingCityFilter(event.target.value)}
+                        className="field-control w-full rounded-2xl px-4 py-3 outline-none"
+                      >
+                        <option value="ALL">All cities</option>
+                        {bookingCities.map((city) => (
+                          <option key={city} value={city}>
+                            {city}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+                        Booking status
+                      </span>
+                      <select
+                        value={bookingStatusFilter}
+                        onChange={(event) =>
+                          setBookingStatusFilter(event.target.value as BookingStatusFilter)
+                        }
+                        className="field-control w-full rounded-2xl px-4 py-3 outline-none"
+                      >
+                        <option value="ALL">All statuses</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="CONFIRMED">Confirmed</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="CANCELLED">Cancelled</option>
+                        <option value="IN_PROGRESS">In progress</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="NO_SHOW">No show</option>
+                      </select>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBookingCityFilter('ALL');
+                        setBookingStatusFilter('ALL');
+                      }}
+                      disabled={!hasActiveBookingFilters}
+                      className="button-secondary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 xl:min-w-[160px]"
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+                  <span className="text-[var(--muted)]">Active:</span>
+                  <span className="rounded-full border border-[var(--line)] px-3 py-1.5">
+                    City: {bookingCityFilter === 'ALL' ? 'All cities' : bookingCityFilter}
+                  </span>
+                  <span className="rounded-full border border-[var(--line)] px-3 py-1.5">
+                    Status:{' '}
+                    {bookingStatusFilter === 'ALL'
+                      ? 'All statuses'
+                      : formatBookingStatusLabel(bookingStatusFilter)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-[28px] border border-[var(--line)]">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[1180px] w-full text-left text-sm">
+                    <thead className="bg-[var(--surface-pill)] text-[var(--muted)]">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold">Guide</th>
+                        <th className="px-4 py-3 font-semibold">Traveller</th>
+                        <th className="px-4 py-3 font-semibold">City</th>
+                        <th className="px-4 py-3 font-semibold">Slot</th>
+                        <th className="px-4 py-3 font-semibold">Guests</th>
+                        <th className="px-4 py-3 font-semibold">Status</th>
+                        <th className="px-4 py-3 font-semibold">Total</th>
+                        <th className="px-4 py-3 font-semibold">Requested</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredBookings.length > 0 ? (
+                        filteredBookings.map((booking) => (
+                          <tr
+                            key={booking.id}
+                            className="border-t border-[var(--line)] align-top"
+                          >
+                            <td className="px-4 py-4">
+                              <p className="font-semibold">{booking.guide.fullName}</p>
+                              <p className="mt-1 text-xs text-[var(--muted)]">
+                                {booking.guide.email}
+                              </p>
+                            </td>
+                            <td className="px-4 py-4">
+                              <p className="font-semibold">{booking.tourist.fullName}</p>
+                              <p className="mt-1 text-xs text-[var(--muted)]">
+                                {booking.tourist.email}
+                              </p>
+                            </td>
+                            <td className="px-4 py-4 text-[var(--muted)]">
+                              {booking.guide.city}
+                            </td>
+                            <td className="px-4 py-4">
+                              <p className="font-medium">
+                                {formatDateTime(booking.startAt)}
+                              </p>
+                              <p className="mt-1 text-xs text-[var(--muted)]">
+                                Until {formatDateTime(booking.endAt)}
+                              </p>
+                              {booking.meetingPoint ? (
+                                <p className="mt-2 text-xs text-[var(--muted)]">
+                                  Meet: {booking.meetingPoint}
+                                </p>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-4 text-[var(--muted)]">
+                              {booking.guestCount}
+                            </td>
+                            <td className="px-4 py-4">
+                              <BookingStatusBadge status={booking.status} />
+                            </td>
+                            <td className="px-4 py-4 text-[var(--muted)]">
+                              {formatCurrency(booking.totalAmount)}
+                            </td>
+                            <td className="px-4 py-4 text-[var(--muted)]">
+                              {formatDateTime(booking.createdAt)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={8}
+                            className="px-4 py-8 text-center text-[var(--muted)]"
+                          >
+                            No bookings match the current filters.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </section>

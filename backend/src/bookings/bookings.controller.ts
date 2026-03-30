@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { UserRole } from '@ghoomo/db';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CreateBookingReviewDto } from './dto/create-booking-review.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { BookingsService } from './bookings.service';
@@ -25,7 +26,7 @@ export class BookingsController {
     return this.bookingsService.getMyBookings(user);
   }
 
-  @Roles(UserRole.GUIDE, UserRole.ADMIN)
+  @Roles(UserRole.TOURIST, UserRole.USER, UserRole.GUIDE, UserRole.ADMIN)
   @Patch(':id/status')
   updateStatus(
     @CurrentUser() user: AuthenticatedUser,
@@ -33,5 +34,15 @@ export class BookingsController {
     @Body() input: UpdateBookingStatusDto,
   ) {
     return this.bookingsService.updateStatus(user, bookingId, input);
+  }
+
+  @Roles(UserRole.TOURIST, UserRole.USER)
+  @Post(':id/review')
+  createReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') bookingId: string,
+    @Body() input: CreateBookingReviewDto,
+  ) {
+    return this.bookingsService.createReview(user, bookingId, input);
   }
 }

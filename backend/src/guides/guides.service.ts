@@ -3,9 +3,23 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { GuideVerificationStatus } from '@ghoomo/db';
+import { BookingStatus, GuideVerificationStatus } from '@ghoomo/db';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateGuideAvailabilityBlockDto } from './dto/create-guide-availability-block.dto';
 import { UpdateMyGuideDto } from './dto/update-my-guide.dto';
+
+const ACTIVE_BOOKING_STATUSES = [
+  BookingStatus.CONFIRMED,
+  BookingStatus.IN_PROGRESS,
+];
+type AvailabilityBlockRecord = {
+  id: string;
+  startAt: Date;
+  endAt: Date;
+  reason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 @Injectable()
 export class GuidesService {
@@ -102,6 +116,11 @@ export class GuidesService {
             createdAt: true,
           },
         },
+        availabilityBlocks: {
+          orderBy: {
+            startAt: 'asc',
+          },
+        },
       },
     });
 
@@ -163,6 +182,7 @@ export class GuidesService {
         verificationStatus: GuideVerificationStatus.PENDING,
         isVerified: false,
         isAvailable: false,
+        acceptingBookings: false,
       },
       include: {
         user: {
@@ -179,11 +199,242 @@ export class GuidesService {
             createdAt: true,
           },
         },
+        availabilityBlocks: {
+          orderBy: {
+            startAt: 'asc',
+          },
+        },
       },
     });
 
     return {
       item: this.serializeGuideWithProfileImage(updatedGuide),
+    };
+  }
+
+  async updateBookingPreference(userId: string, acceptingBookings: boolean) {
+    const guide = await this.prisma.guideProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!guide) {
+      throw new NotFoundException('Guide profile not found.');
+    }
+
+    if (
+      acceptingBookings &&
+      (!guide.isVerified ||
+        guide.verificationStatus !== GuideVerificationStatus.APPROVED)
+    ) {
+      throw new BadRequestException(
+        'Only approved guides can start accepting bookings.',
+      );
+    }
+
+    const updatedGuide = await this.prisma.guideProfile.update({
+      where: { id: guide.id },
+      data: {
+        acceptingBookings,
+        isAvailable:
+          acceptingBookings &&
+          guide.isVerified &&
+          guide.verificationStatus === GuideVerificationStatus.APPROVED,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        reviews: {
+          select: {
+            rating: true,
+            comment: true,
+            createdAt: true,
+          },
+        },
+        availabilityBlocks: {
+          orderBy: {
+            startAt: 'asc',
+          },
+        },
+      },
+    });
+
+    return {
+      item: this.serializeGuideWithProfileImage(updatedGuide),
+    };
+  }
+
+  async getAvailabilityBlocks(userId: string) {
+    const guide = await this.prisma.guideProfile.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!guide) {
+      throw new NotFoundException('Guide profile not found.');
+    }
+
+    const blocks = await this.prisma.guideAvailabilityBlock.findMany({
+      where: {
+        guideProfileId: guide.id,
+      },
+      orderBy: {
+        startAt: 'asc',
+      },
+    });
+
+    return {
+      items: blocks.map((block) => this.serializeAvailabilityBlock(block)),
+    };
+  }
+
+  async createAvailabilityBlock(
+    userId: string,
+    input: CreateGuideAvailabilityBlockDto,
+  ) {
+    const guide = await this.prisma.guideProfile.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!guide) {
+      throw new NotFoundException('Guide profile not found.');
+    }
+
+    const { startAt, endAt } = this.parseDateRange(input.startAt, input.endAt);
+
+    await this.assertNoActiveBookingConflict(guide.id, startAt, endAt);
+
+    const block = await this.prisma.guideAvailabilityBlock.create({
+      data: {
+        guideProfileId: guide.id,
+        startAt,
+        endAt,
+        reason: input.reason?.trim() || null,
+      },
+    });
+
+    return {
+      item: this.serializeAvailabilityBlock(block),
+    };
+  }
+
+  async deleteAvailabilityBlock(userId: string, blockId: string) {
+    const guide = await this.prisma.guideProfile.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!guide) {
+      throw new NotFoundException('Guide profile not found.');
+    }
+
+    const block = await this.prisma.guideAvailabilityBlock.findUnique({
+      where: { id: blockId },
+    });
+
+    if (!block || block.guideProfileId !== guide.id) {
+      throw new NotFoundException('Availability block not found.');
+    }
+
+    await this.prisma.guideAvailabilityBlock.delete({
+      where: { id: blockId },
+    });
+
+    return {
+      success: true,
+    };
+  }
+
+  async getAvailability(id: string, startAtRaw: string, endAtRaw: string) {
+    const { startAt, endAt } = this.parseDateRange(startAtRaw, endAtRaw);
+
+    const guide = await this.prisma.guideProfile.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        isVerified: true,
+        isAvailable: true,
+        acceptingBookings: true,
+        verificationStatus: true,
+        availabilityBlocks: {
+          where: {
+            startAt: {
+              lt: endAt,
+            },
+            endAt: {
+              gt: startAt,
+            },
+          },
+          select: {
+            id: true,
+            reason: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !guide ||
+      !guide.isVerified ||
+      guide.verificationStatus !== GuideVerificationStatus.APPROVED
+    ) {
+      throw new NotFoundException('Guide not found.');
+    }
+
+    if (!guide.acceptingBookings || !guide.isAvailable) {
+      return {
+        item: {
+          guideProfileId: id,
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
+          isAvailable: false,
+          reason: 'Guide is not accepting bookings right now.',
+        },
+      };
+    }
+
+    if (guide.availabilityBlocks.length > 0) {
+      return {
+        item: {
+          guideProfileId: id,
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
+          isAvailable: false,
+          reason:
+            guide.availabilityBlocks[0]?.reason?.trim() ||
+            'Guide is unavailable for the selected slot.',
+        },
+      };
+    }
+
+    const conflictCount = await this.countActiveBookingConflicts(
+      id,
+      startAt,
+      endAt,
+    );
+
+    return {
+      item: {
+        guideProfileId: id,
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+        isAvailable: conflictCount === 0,
+        reason:
+          conflictCount === 0
+            ? null
+            : 'Guide already has another booking in the selected time slot.',
+      },
     };
   }
 
@@ -204,6 +455,17 @@ export class GuidesService {
             comment: true,
             createdAt: true,
           },
+        },
+        availabilityBlocks: {
+          where: {
+            endAt: {
+              gte: new Date(),
+            },
+          },
+          orderBy: {
+            startAt: 'asc',
+          },
+          take: 8,
         },
       },
     });
@@ -256,6 +518,7 @@ export class GuidesService {
         verificationStatus: status,
         isVerified: status === GuideVerificationStatus.APPROVED,
         isAvailable: status === GuideVerificationStatus.APPROVED,
+        acceptingBookings: status === GuideVerificationStatus.APPROVED,
       },
       include: {
         user: {
@@ -278,6 +541,86 @@ export class GuidesService {
     };
   }
 
+  private parseDateRange(startAtRaw: string, endAtRaw: string) {
+    const startAt = new Date(startAtRaw);
+    const endAt = new Date(endAtRaw);
+
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      throw new BadRequestException('Provide a valid availability range.');
+    }
+
+    if (endAt <= startAt) {
+      throw new BadRequestException('End time must be after start time.');
+    }
+
+    return { startAt, endAt };
+  }
+
+  private async assertNoActiveBookingConflict(
+    guideProfileId: string,
+    startAt: Date,
+    endAt: Date,
+  ) {
+    const conflicts = await this.countActiveBookingConflicts(
+      guideProfileId,
+      startAt,
+      endAt,
+    );
+
+    if (conflicts > 0) {
+      throw new BadRequestException(
+        'This slot overlaps with an active booking.',
+      );
+    }
+  }
+
+  private async countActiveBookingConflicts(
+    guideProfileId: string,
+    startAt: Date,
+    endAt: Date,
+  ) {
+    return this.prisma.booking.count({
+      where: {
+        guideProfileId,
+        status: {
+          in: ACTIVE_BOOKING_STATUSES,
+        },
+        OR: [
+          {
+            startAt: {
+              lt: endAt,
+            },
+            endAt: {
+              gt: startAt,
+            },
+          },
+          {
+            startAt: null,
+            endAt: null,
+            travelDate: {
+              gte: startAt,
+              lt: endAt,
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  private resolvePublicAvailability(guide: {
+    verificationStatus: GuideVerificationStatus;
+    isVerified: boolean;
+    isAvailable: boolean;
+    acceptingBookings: boolean;
+  }) {
+    return (
+      guide.verificationStatus === GuideVerificationStatus.APPROVED &&
+      guide.isVerified &&
+      guide.isAvailable &&
+      guide.acceptingBookings
+    );
+  }
+
   private serializeGuide(guide: {
     id: string;
     city: string;
@@ -288,6 +631,7 @@ export class GuidesService {
     verificationStatus: GuideVerificationStatus;
     isVerified: boolean;
     isAvailable: boolean;
+    acceptingBookings: boolean;
     createdAt?: Date;
     user: { id: string; fullName: string; email: string; role?: string };
     reviews: Array<{
@@ -295,6 +639,7 @@ export class GuidesService {
       comment?: string | null;
       createdAt?: Date;
     }>;
+    availabilityBlocks?: AvailabilityBlockRecord[];
   }) {
     const reviewCount = guide.reviews.length;
     const averageRating =
@@ -316,7 +661,8 @@ export class GuidesService {
       hourlyRate: guide.hourlyRate,
       verificationStatus: guide.verificationStatus,
       isVerified: guide.isVerified,
-      isAvailable: guide.isAvailable,
+      isAvailable: this.resolvePublicAvailability(guide),
+      acceptingBookings: guide.acceptingBookings,
       createdAt: guide.createdAt?.toISOString(),
       reviewCount,
       averageRating,
@@ -326,6 +672,9 @@ export class GuidesService {
         comment: review.comment ?? null,
         createdAt: review.createdAt?.toISOString(),
       })),
+      availabilityBlocks: guide.availabilityBlocks?.map((block) =>
+        this.serializeAvailabilityBlock(block),
+      ),
     };
   }
 
@@ -339,6 +688,7 @@ export class GuidesService {
     verificationStatus: GuideVerificationStatus;
     isVerified: boolean;
     isAvailable: boolean;
+    acceptingBookings: boolean;
     createdAt?: Date;
     passportPhotoBase64?: string | null;
     passportPhotoMimeType?: string | null;
@@ -348,6 +698,7 @@ export class GuidesService {
       comment?: string | null;
       createdAt?: Date;
     }>;
+    availabilityBlocks?: AvailabilityBlockRecord[];
   }) {
     return {
       ...this.serializeGuide(guide),
@@ -366,6 +717,7 @@ export class GuidesService {
     verificationStatus: GuideVerificationStatus;
     isVerified: boolean;
     isAvailable: boolean;
+    acceptingBookings: boolean;
     createdAt?: Date;
     aadhaarNumber: string | null;
     panNumber: string | null;
@@ -394,6 +746,17 @@ export class GuidesService {
         passportPhotoBase64: guide.passportPhotoBase64 ?? null,
         passportPhotoMimeType: guide.passportPhotoMimeType ?? null,
       },
+    };
+  }
+
+  private serializeAvailabilityBlock(block: AvailabilityBlockRecord) {
+    return {
+      id: block.id,
+      startAt: block.startAt.toISOString(),
+      endAt: block.endAt.toISOString(),
+      reason: block.reason ?? null,
+      createdAt: block.createdAt.toISOString(),
+      updatedAt: block.updatedAt.toISOString(),
     };
   }
 }

@@ -385,7 +385,9 @@ export class CitiesService {
       }
 
       if (seenSlugs.has(slug)) {
-        throw new BadRequestException('Place names must be unique within a city.');
+        throw new BadRequestException(
+          'Place names must be unique within a city.',
+        );
       }
 
       seenSlugs.add(slug);

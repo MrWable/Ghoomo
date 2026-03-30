@@ -3,6 +3,23 @@ const API_BASE_URL =
 
 export type UserRole = "TOURIST" | "USER" | "GUIDE" | "ADMIN";
 export type GuideVerificationStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type BookingStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "REJECTED"
+  | "CANCELLED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "NO_SHOW";
+
+export type GuideAvailabilityBlock = {
+  id: string;
+  startAt: string;
+  endAt: string;
+  reason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type Guide = {
   id: string;
@@ -14,11 +31,13 @@ export type Guide = {
   verificationStatus: GuideVerificationStatus;
   isVerified: boolean;
   isAvailable: boolean;
+  acceptingBookings: boolean;
   createdAt?: string;
   profileImageBase64?: string | null;
   profileImageMimeType?: string | null;
   averageRating: number | null;
   reviewCount: number;
+  availabilityBlocks?: GuideAvailabilityBlock[];
   user: {
     id: string;
     fullName: string;
@@ -60,6 +79,7 @@ export type AdminUserRecord = {
     verificationStatus: GuideVerificationStatus;
     isVerified: boolean;
     isAvailable: boolean;
+    acceptingBookings: boolean;
     createdAt?: string;
     averageRating: number | null;
     reviewCount: number;
@@ -115,6 +135,55 @@ export type AuthSession = {
   user: AuthUser;
 };
 
+export type BookingReview = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Booking = {
+  id: string;
+  status: BookingStatus;
+  message: string | null;
+  totalAmount: number | null;
+  travelDate: string;
+  startAt: string;
+  endAt: string;
+  timezone: string | null;
+  guestCount: number;
+  meetingPoint: string | null;
+  cancellationReason: string | null;
+  confirmedAt: string | null;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  tourist: {
+    id: string;
+    fullName: string;
+    email: string;
+  };
+  guide: {
+    guideProfileId: string;
+    userId: string;
+    city: string;
+    hourlyRate: number | null;
+    acceptingBookings: boolean;
+    fullName: string;
+    email: string;
+  };
+  review: BookingReview | null;
+};
+
+export type GuideAvailabilityCheck = {
+  guideProfileId: string;
+  startAt: string;
+  endAt: string;
+  isAvailable: boolean;
+  reason: string | null;
+};
+
 export type UserRegistrationInput = {
   fullName: string;
   email: string;
@@ -165,6 +234,32 @@ export type CreateCityInput = {
   }>;
 };
 
+export type CreateBookingInput = {
+  guideProfileId: string;
+  startAt: string;
+  endAt: string;
+  guestCount?: number;
+  timezone?: string;
+  meetingPoint?: string;
+  message?: string;
+};
+
+export type UpdateBookingStatusInput = {
+  status: BookingStatus;
+  cancellationReason?: string;
+};
+
+export type CreateBookingReviewInput = {
+  rating: number;
+  comment?: string;
+};
+
+export type CreateGuideAvailabilityBlockInput = {
+  startAt: string;
+  endAt: string;
+  reason?: string;
+};
+
 async function readJson<T>(path: string): Promise<T | null> {
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -202,6 +297,14 @@ export async function getGuides(city?: string) {
   const search = city ? `?city=${encodeURIComponent(city)}` : "";
   const response = await readJson<{ items: Guide[] }>(`/guides${search}`);
   return response?.items ?? [];
+}
+
+export async function getGuide(guideId: string) {
+  const response = await readJson<{ item: Guide }>(
+    `/guides/${encodeURIComponent(guideId)}`,
+  );
+
+  return response?.item ?? null;
 }
 
 export async function getGuidesForLoggedInCity(token: string, city: string) {
@@ -549,4 +652,215 @@ export async function updateGuideVerification(
   }
 
   return (payload as { item: Guide }).item;
+}
+
+export async function checkGuideAvailability(
+  guideId: string,
+  startAt: string,
+  endAt: string,
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/guides/${guideId}/availability?startAt=${encodeURIComponent(startAt)}&endAt=${encodeURIComponent(endAt)}`,
+    {
+      cache: "no-store",
+    },
+  );
+
+  const payload = (await response.json()) as
+    | { item: GuideAvailabilityCheck }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as { item: GuideAvailabilityCheck }).item;
+}
+
+export async function updateGuideBookingPreference(
+  token: string,
+  acceptingBookings: boolean,
+) {
+  const response = await fetch(`${API_BASE_URL}/guides/me/booking-preference`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ acceptingBookings }),
+  });
+
+  const payload = (await response.json()) as
+    | { item: Guide }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as { item: Guide }).item;
+}
+
+export async function getMyGuideAvailabilityBlocks(token: string) {
+  const response = await fetch(`${API_BASE_URL}/guides/me/availability-blocks`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  const payload = (await response.json()) as
+    | { items: GuideAvailabilityBlock[] }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as { items: GuideAvailabilityBlock[] }).items;
+}
+
+export async function createGuideAvailabilityBlock(
+  token: string,
+  input: CreateGuideAvailabilityBlockInput,
+) {
+  const response = await fetch(`${API_BASE_URL}/guides/me/availability-blocks`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const payload = (await response.json()) as
+    | { item: GuideAvailabilityBlock }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as { item: GuideAvailabilityBlock }).item;
+}
+
+export async function deleteGuideAvailabilityBlock(
+  token: string,
+  blockId: string,
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/guides/me/availability-blocks/${blockId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  const payload = (await response.json()) as
+    | { success: boolean }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as { success: boolean }).success;
+}
+
+export async function createBooking(token: string, input: CreateBookingInput) {
+  const response = await fetch(`${API_BASE_URL}/bookings`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const payload = (await response.json()) as
+    | Booking
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return payload as Booking;
+}
+
+export async function getMyBookings(token: string) {
+  const response = await fetch(`${API_BASE_URL}/bookings/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  const payload = (await response.json()) as
+    | { items: Booking[] }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as { items: Booking[] }).items;
+}
+
+export async function updateBookingStatus(
+  token: string,
+  bookingId: string,
+  input: UpdateBookingStatusInput,
+) {
+  const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const payload = (await response.json()) as
+    | Booking
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return payload as Booking;
+}
+
+export async function createBookingReview(
+  token: string,
+  bookingId: string,
+  input: CreateBookingReviewInput,
+) {
+  const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/review`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const payload = (await response.json()) as
+    | { item: BookingReview & { bookingId: string; guideProfileId: string; touristId: string } }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as {
+    item: BookingReview & {
+      bookingId: string;
+      guideProfileId: string;
+      touristId: string;
+    };
+  }).item;
 }

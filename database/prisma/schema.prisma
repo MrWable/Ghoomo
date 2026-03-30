@@ -18,8 +18,11 @@ enum UserRole {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  REJECTED
   CANCELLED
+  IN_PROGRESS
   COMPLETED
+  NO_SHOW
 }
 
 enum GuideVerificationStatus {
@@ -61,10 +64,12 @@ model GuideProfile {
   verificationStatus GuideVerificationStatus @default(PENDING)
   isVerified         Boolean                 @default(false)
   isAvailable        Boolean                 @default(true)
+  acceptingBookings  Boolean                 @default(true)
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
   bookings           Booking[]
   itineraries        Itinerary[]
+  availabilityBlocks GuideAvailabilityBlock[]
   reviews            Review[]
   user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -104,14 +109,27 @@ model Booking {
   touristId      String
   guideProfileId String
   travelDate     DateTime
+  startAt        DateTime?
+  endAt          DateTime?
+  timezone       String?
+  guestCount     Int           @default(1)
+  meetingPoint   String?
   message        String?
   status         BookingStatus @default(PENDING)
   totalAmount    Int?
+  confirmedAt    DateTime?
+  cancelledAt    DateTime?
+  completedAt    DateTime?
+  cancellationReason String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   guideProfile   GuideProfile  @relation(fields: [guideProfileId], references: [id], onDelete: Cascade)
   tourist        User          @relation("TouristBookings", fields: [touristId], references: [id], onDelete: Cascade)
   itinerary      Itinerary?
+  review         Review?
+
+  @@index([guideProfileId, status, startAt, endAt])
+  @@index([touristId, status, travelDate])
 }
 
 model Itinerary {
@@ -131,11 +149,28 @@ model Review {
   id             String       @id @default(cuid())
   touristId      String
   guideProfileId String
+  bookingId      String?      @unique
   rating         Int
   comment        String?
   createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  booking        Booking?     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   guideProfile   GuideProfile @relation(fields: [guideProfileId], references: [id], onDelete: Cascade)
   tourist        User         @relation(fields: [touristId], references: [id], onDelete: Cascade)
 
-  @@unique([touristId, guideProfileId])
+  @@index([guideProfileId, createdAt])
+  @@index([touristId, createdAt])
+}
+
+model GuideAvailabilityBlock {
+  id             String       @id @default(cuid())
+  guideProfileId String
+  startAt        DateTime
+  endAt          DateTime
+  reason         String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  guideProfile   GuideProfile @relation(fields: [guideProfileId], references: [id], onDelete: Cascade)
+
+  @@index([guideProfileId, startAt, endAt])
 }

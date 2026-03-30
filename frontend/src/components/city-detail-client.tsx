@@ -8,6 +8,7 @@ import {
   type CityDetail,
   type CreateCityInput,
   type Guide,
+  type UserRole,
   getGuidesForLoggedInCity,
   updateCityImage,
   updateCityPlaces,
@@ -79,6 +80,7 @@ export function CityDetailClient({
   const [editablePlaces, setEditablePlaces] = useState<EditablePlace[]>(
     toEditablePlaces(initialCity),
   );
+  const [viewerRole, setViewerRole] = useState<UserRole | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -93,6 +95,7 @@ export function CityDetailClient({
     const session = getStoredSession();
     setIsAdmin(session?.user.role === 'ADMIN');
     setIsLoggedIn(Boolean(session));
+    setViewerRole(session?.user.role ?? null);
 
     if (!session) {
       setCityGuides([]);
@@ -135,6 +138,8 @@ export function CityDetailClient({
     };
   }, [initialCity.name]);
 
+  const canRequestBookings = viewerRole === 'USER' || viewerRole === 'TOURIST';
+
   function resetEditor(nextCity: CityDetail) {
     setEditablePlaces(toEditablePlaces(nextCity));
     setCityImagePreviewSrc(null);
@@ -149,9 +154,9 @@ export function CityDetailClient({
       current.map((place) =>
         place.id === id
           ? {
-              ...place,
-              ...patch,
-            }
+            ...place,
+            ...patch,
+          }
           : place,
       ),
     );
@@ -745,6 +750,31 @@ export function CityDetailClient({
                     <span className="font-semibold">
                       {guide.averageRating ? `${guide.averageRating} / 5` : 'Fresh profile'}
                     </span>
+                  </div>
+
+                  <div className="mt-6 border-t border-[var(--line)] pt-5">
+                    {canRequestBookings ? (
+                      guide.isAvailable ? (
+                        <Link
+                          href={`/guides/${guide.id}/book?city=${encodeURIComponent(city.slug)}`}
+                          className="button-primary block w-full rounded-full px-5 py-3 text-center text-sm font-semibold"
+                        >
+                          Book guide
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="button-primary w-full rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          Unavailable right now
+                        </button>
+                      )
+                    ) : (
+                      <div className="rounded-[22px] border border-[var(--line)] bg-[var(--surface-pill)] px-4 py-3 text-sm text-[var(--muted)]">
+                        Switch to a traveller account to request this guide.
+                      </div>
+                    )}
                   </div>
                 </article>
               ))}

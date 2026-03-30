@@ -279,6 +279,7 @@ export class AuthService {
       verificationStatus: GuideVerificationStatus;
       isVerified: boolean;
       isAvailable: boolean;
+      acceptingBookings: boolean;
       createdAt: Date;
       aadhaarNumber: string | null;
       panNumber: string | null;
@@ -296,6 +297,13 @@ export class AuthService {
     } | null;
   }) {
     const reviewCount = user.guideProfile?.reviews.length ?? 0;
+    const isGuideAvailable = user.guideProfile
+      ? user.guideProfile.verificationStatus ===
+          GuideVerificationStatus.APPROVED &&
+        user.guideProfile.isVerified &&
+        user.guideProfile.isAvailable &&
+        user.guideProfile.acceptingBookings
+      : false;
     const averageRating =
       reviewCount === 0
         ? null
@@ -326,7 +334,8 @@ export class AuthService {
             hourlyRate: user.guideProfile.hourlyRate,
             verificationStatus: user.guideProfile.verificationStatus,
             isVerified: user.guideProfile.isVerified,
-            isAvailable: user.guideProfile.isAvailable,
+            isAvailable: isGuideAvailable,
+            acceptingBookings: user.guideProfile.acceptingBookings,
             createdAt: user.guideProfile.createdAt.toISOString(),
             reviewCount,
             averageRating,
@@ -371,7 +380,8 @@ export class AuthService {
       specialties,
       verificationStatus: GuideVerificationStatus.PENDING,
       isVerified: false,
-      isAvailable: true,
+      isAvailable: false,
+      acceptingBookings: false,
       ...documents,
     };
   }

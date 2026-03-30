@@ -5,12 +5,20 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import {
+  getMyBookings,
+  createGuideAvailabilityBlock,
+  deleteGuideAvailabilityBlock,
   getCities,
   getCurrentUser,
   getMyGuide,
+  updateBookingStatus,
+  updateGuideBookingPreference,
   updateMyGuide,
   type AuthUser,
+  type Booking,
+  type BookingStatus,
   type Guide,
+  type GuideAvailabilityBlock,
 } from '@/lib/api';
 import { clearSession, getStoredSession } from '@/lib/auth';
 
@@ -22,8 +30,83 @@ type GuideEditFormState = {
   specialties: string;
 };
 
+type AvailabilityFormState = {
+  startAt: string;
+  endAt: string;
+  reason: string;
+};
+
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleDateString() : 'Not available';
+}
+
+function formatDateTime(value?: string | null) {
+  return value
+    ? new Intl.DateTimeFormat('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(new Date(value))
+    : 'Not scheduled';
+}
+
+function formatDateTimeLocalValue(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hours = `${date.getHours()}`.padStart(2, '0');
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function createDefaultAvailabilityForm(): AvailabilityFormState {
+  const startAt = new Date();
+  startAt.setDate(startAt.getDate() + 1);
+  startAt.setHours(9, 0, 0, 0);
+
+  const endAt = new Date(startAt);
+  endAt.setHours(endAt.getHours() + 8);
+
+  return {
+    startAt: formatDateTimeLocalValue(startAt),
+    endAt: formatDateTimeLocalValue(endAt),
+    reason: '',
+  };
+}
+
+function sortAvailabilityBlocks(blocks: GuideAvailabilityBlock[]) {
+  return [...blocks].sort(
+    (left, right) =>
+      new Date(left.startAt).getTime() - new Date(right.startAt).getTime(),
+  );
+}
+
+function sortBookings(bookings: Booking[]) {
+  return [...bookings].sort((left, right) => {
+    const statusOrder: Record<BookingStatus, number> = {
+      PENDING: 0,
+      CONFIRMED: 1,
+      IN_PROGRESS: 2,
+      COMPLETED: 3,
+      NO_SHOW: 4,
+      CANCELLED: 5,
+      REJECTED: 6,
+    };
+    const statusDifference = statusOrder[left.status] - statusOrder[right.status];
+
+    if (statusDifference !== 0) {
+      return statusDifference;
+    }
+
+    const leftTime = new Date(left.startAt).getTime();
+    const rightTime = new Date(right.startAt).getTime();
+
+    if (leftTime !== rightTime) {
+      return leftTime - rightTime;
+    }
+
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  });
 }
 
 function toProfileImageSrc(base64: string, mimeType: string) {
@@ -51,6 +134,37 @@ function createEditForm(guide: Guide): GuideEditFormState {
   };
 }
 
+function formatCurrency(amount: number | null) {
+  return amount == null
+    ? 'Quoted later'
+    : `INR ${amount.toLocaleString('en-IN')}`;
+}
+
+function formatBookingStatusLabel(status: BookingStatus) {
+  return status
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function BookingStatusBadge({ status }: { status: BookingStatus }) {
+  const className =
+    status === 'PENDING'
+      ? 'warning-badge'
+      : status === 'CONFIRMED' || status === 'IN_PROGRESS'
+        ? 'status-badge'
+        : status === 'COMPLETED'
+          ? 'tag-soft'
+          : 'border border-[var(--error-border)] bg-[var(--error-soft)] text-[var(--error-text)]';
+
+  return (
+    <span className={`${className} rounded-full px-3 py-1 text-xs font-semibold`}>
+      {formatBookingStatusLabel(status)}
+    </span>
+  );
+}
+
 function GuideStatusBadge({
   status,
 }: {
@@ -73,11 +187,21 @@ function GuideStatusBadge({
 export function GuideDashboard() {
   const router = useRouter();
   const [guide, setGuide] = useState<Guide | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [editForm, setEditForm] = useState<GuideEditFormState | null>(null);
+  const [availabilityForm, setAvailabilityForm] = useState<AvailabilityFormState>(
+    createDefaultAvailabilityForm(),
+  );
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUpdatingAvailability, setIsUpdatingAvailability] = useState(false);
+  const [isCreatingAvailabilityBlock, setIsCreatingAvailabilityBlock] =
+    useState(false);
+  const [removingAvailabilityBlockId, setRemovingAvailabilityBlockId] =
+    useState<string | null>(null);
+  const [bookingActionId, setBookingActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,10 +228,11 @@ export function GuideDashboard() {
       }
 
       try {
-        const [nextUser, nextGuide, cities] = await Promise.all([
+        const [nextUser, nextGuide, cities, guideBookings] = await Promise.all([
           getCurrentUser(session.accessToken),
           getMyGuide(session.accessToken),
           getCities().catch(() => []),
+          getMyBookings(session.accessToken),
         ]);
 
         if (!isActive) {
@@ -116,6 +241,7 @@ export function GuideDashboard() {
 
         setUser(nextUser);
         setGuide(nextGuide);
+        setBookings(sortBookings(guideBookings));
         setEditForm(createEditForm(nextGuide));
         setAvailableCities(cities.map((city) => city.name));
         setError(null);
@@ -162,6 +288,16 @@ export function GuideDashboard() {
           }
         : current,
     );
+  }
+
+  function handleAvailabilityField<Key extends keyof AvailabilityFormState>(
+    key: Key,
+    value: AvailabilityFormState[Key],
+  ) {
+    setAvailabilityForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
   }
 
   function handleStartEditing() {
@@ -243,6 +379,181 @@ export function GuideDashboard() {
     }
   }
 
+  async function handleBookingPreferenceUpdate(acceptingBookings: boolean) {
+    const session = getStoredSession();
+
+    if (!session) {
+      router.replace('/login?next=/guides');
+      return;
+    }
+
+    setIsUpdatingAvailability(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const updatedGuide = await updateGuideBookingPreference(
+        session.accessToken,
+        acceptingBookings,
+      );
+
+      setGuide(updatedGuide);
+      setSuccessMessage(
+        acceptingBookings
+          ? 'Your guide card is now open for new booking requests.'
+          : 'Your guide card is paused for new booking requests.',
+      );
+    } catch (updateError) {
+      setError(
+        updateError instanceof Error
+          ? updateError.message
+          : 'Unable to update booking preference.',
+      );
+    } finally {
+      setIsUpdatingAvailability(false);
+    }
+  }
+
+  async function handleCreateAvailabilityBlock(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const session = getStoredSession();
+
+    if (!session) {
+      router.replace('/login?next=/guides');
+      return;
+    }
+
+    const startAt = new Date(availabilityForm.startAt);
+    const endAt = new Date(availabilityForm.endAt);
+
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      setError('Enter a valid blocked time range.');
+      return;
+    }
+
+    if (endAt <= startAt) {
+      setError('Blocked end time must be after the start time.');
+      return;
+    }
+
+    setIsCreatingAvailabilityBlock(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const block = await createGuideAvailabilityBlock(session.accessToken, {
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+        reason: availabilityForm.reason.trim() || undefined,
+      });
+
+      setGuide((current) =>
+        current
+          ? {
+              ...current,
+              availabilityBlocks: sortAvailabilityBlocks([
+                ...(current.availabilityBlocks ?? []),
+                block,
+              ]),
+            }
+          : current,
+      );
+      setAvailabilityForm(createDefaultAvailabilityForm());
+      setSuccessMessage(
+        'Blocked slot added. Travellers will see it on the booking screen.',
+      );
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : 'Unable to add this blocked slot.',
+      );
+    } finally {
+      setIsCreatingAvailabilityBlock(false);
+    }
+  }
+
+  async function handleDeleteAvailabilityBlock(blockId: string) {
+    const session = getStoredSession();
+
+    if (!session) {
+      router.replace('/login?next=/guides');
+      return;
+    }
+
+    setRemovingAvailabilityBlockId(blockId);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      await deleteGuideAvailabilityBlock(session.accessToken, blockId);
+
+      setGuide((current) =>
+        current
+          ? {
+              ...current,
+              availabilityBlocks: (current.availabilityBlocks ?? []).filter(
+                (block) => block.id !== blockId,
+              ),
+            }
+          : current,
+      );
+      setSuccessMessage('Blocked slot removed.');
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : 'Unable to remove this blocked slot.',
+      );
+    } finally {
+      setRemovingAvailabilityBlockId(null);
+    }
+  }
+
+  async function handleBookingAction(
+    bookingId: string,
+    status: 'CONFIRMED' | 'REJECTED',
+  ) {
+    const session = getStoredSession();
+
+    if (!session) {
+      router.replace('/login?next=/guides');
+      return;
+    }
+
+    setBookingActionId(bookingId);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const updatedBooking = await updateBookingStatus(session.accessToken, bookingId, {
+        status,
+      });
+
+      setBookings((current) =>
+        sortBookings(
+          current.map((booking) =>
+            booking.id === bookingId ? updatedBooking : booking,
+          ),
+        ),
+      );
+      setSuccessMessage(
+        status === 'CONFIRMED'
+          ? 'Booking request accepted.'
+          : 'Booking request rejected.',
+      );
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : 'Unable to update this booking request.',
+      );
+    } finally {
+      setBookingActionId(null);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="glass-panel rounded-[36px] p-8 md:p-10">
@@ -269,6 +580,14 @@ export function GuideDashboard() {
 
   const hasProfileImage = Boolean(
     guide.profileImageBase64 && guide.profileImageMimeType,
+  );
+  const availabilityBlocks = sortAvailabilityBlocks(guide.availabilityBlocks ?? []);
+  const pendingBookings = bookings.filter((booking) => booking.status === 'PENDING');
+  const confirmedBookings = bookings.filter(
+    (booking) => booking.status === 'CONFIRMED' || booking.status === 'IN_PROGRESS',
+  );
+  const completedBookings = bookings.filter(
+    (booking) => booking.status === 'COMPLETED',
   );
   const cityOptions = Array.from(
     new Set([...availableCities, guide.city].filter(Boolean)),
@@ -478,6 +797,24 @@ export function GuideDashboard() {
             </p>
             <p className="mt-2 text-lg font-semibold">{formatDate(guide.createdAt)}</p>
           </div>
+          <div className="panel-tint rounded-[24px] p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+              Pending requests
+            </p>
+            <p className="mt-2 text-lg font-semibold">{pendingBookings.length}</p>
+          </div>
+          <div className="panel-tint rounded-[24px] p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+              Active services
+            </p>
+            <p className="mt-2 text-lg font-semibold">{confirmedBookings.length}</p>
+          </div>
+          <div className="panel-tint rounded-[24px] p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+              Completed
+            </p>
+            <p className="mt-2 text-lg font-semibold">{completedBookings.length}</p>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
@@ -490,7 +827,7 @@ export function GuideDashboard() {
               </p>
               <p>
                 <span className="font-semibold text-[var(--foreground)]">Availability:</span>{' '}
-                {guide.isAvailable ? 'Available' : 'Busy'}
+                {guide.acceptingBookings ? 'Accepting bookings' : 'Paused'}
               </p>
               <p>
                 <span className="font-semibold text-[var(--foreground)]">Reviews:</span>{' '}
@@ -512,6 +849,142 @@ export function GuideDashboard() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <article className="panel-tint rounded-[28px] p-6">
+            <p className="eyebrow">Booking controls</p>
+            <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
+              Turn new booking requests on or off for your public guide card.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => void handleBookingPreferenceUpdate(true)}
+                disabled={
+                  isUpdatingAvailability ||
+                  guide.verificationStatus !== 'APPROVED' ||
+                  guide.acceptingBookings
+                }
+                className="button-primary rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isUpdatingAvailability && !guide.acceptingBookings
+                  ? 'Updating...'
+                  : 'Accept bookings'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleBookingPreferenceUpdate(false)}
+                disabled={isUpdatingAvailability || !guide.acceptingBookings}
+                className="button-secondary rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isUpdatingAvailability && guide.acceptingBookings
+                  ? 'Updating...'
+                  : 'Pause bookings'}
+              </button>
+            </div>
+            <p className="mt-4 text-sm text-[var(--muted)]">
+              {guide.verificationStatus === 'APPROVED'
+                ? guide.acceptingBookings
+                  ? 'Travellers can currently request you from the city booking flow.'
+                  : 'Your card stays visible, but travellers cannot send new requests.'
+                : 'Booking controls unlock after admin approval.'}
+            </p>
+          </article>
+
+          <article className="panel-tint rounded-[28px] p-6">
+            <p className="eyebrow">Blocked dates</p>
+            <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
+              Add days or time ranges when you do not want to receive bookings.
+            </p>
+            <form
+              onSubmit={(event) => void handleCreateAvailabilityBlock(event)}
+              className="mt-5 space-y-4"
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium">Start</span>
+                  <input
+                    type="datetime-local"
+                    value={availabilityForm.startAt}
+                    onChange={(event) =>
+                      handleAvailabilityField('startAt', event.target.value)
+                    }
+                    className="field-control w-full rounded-2xl px-4 py-3 outline-none"
+                    required
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium">End</span>
+                  <input
+                    type="datetime-local"
+                    value={availabilityForm.endAt}
+                    onChange={(event) =>
+                      handleAvailabilityField('endAt', event.target.value)
+                    }
+                    className="field-control w-full rounded-2xl px-4 py-3 outline-none"
+                    required
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium">Reason</span>
+                <input
+                  type="text"
+                  value={availabilityForm.reason}
+                  onChange={(event) =>
+                    handleAvailabilityField('reason', event.target.value)
+                  }
+                  className="field-control w-full rounded-2xl px-4 py-3 outline-none"
+                  placeholder="Leave, private tour, travel day..."
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isCreatingAvailabilityBlock}
+                className="button-secondary rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isCreatingAvailabilityBlock ? 'Saving block...' : 'Add blocked slot'}
+              </button>
+            </form>
+
+            <div className="mt-6 space-y-3">
+              {availabilityBlocks.length > 0 ? (
+                availabilityBlocks.map((block) => (
+                  <div
+                    key={block.id}
+                    className="rounded-[22px] border border-[var(--line)] bg-[var(--surface-pill)] p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {formatDateTime(block.startAt)} to {formatDateTime(block.endAt)}
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--muted)]">
+                          {block.reason ?? 'No reason provided.'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteAvailabilityBlock(block.id)}
+                        disabled={removingAvailabilityBlockId === block.id}
+                        className="button-secondary rounded-full px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {removingAvailabilityBlockId === block.id
+                          ? 'Removing...'
+                          : 'Remove'}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-[var(--line)] bg-[var(--surface-pill)] px-4 py-3 text-sm text-[var(--muted)]">
+                  No blocked slots yet. Travellers will see future blocks on the booking page.
+                </div>
+              )}
+            </div>
+          </article>
+
           <article className="panel-tint rounded-[28px] p-6">
             <p className="eyebrow">Languages</p>
             <div className="mt-5 flex flex-wrap gap-2">
@@ -540,6 +1013,136 @@ export function GuideDashboard() {
             </div>
           </article>
         </div>
+
+        <article className="panel-tint mt-6 rounded-[28px] p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="eyebrow">Service bookings</p>
+              <h2 className="mt-3 text-2xl font-semibold">
+                Requests and confirmed tours for your guide card
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--muted)]">
+                Every traveller request sent to this guide appears here. Pending rows can
+                be accepted or rejected directly from the table.
+              </p>
+            </div>
+            <div className="contrast-panel rounded-[24px] px-4 py-3 text-sm shadow-none">
+              {bookings.length} {bookings.length === 1 ? 'booking' : 'bookings'}
+            </div>
+          </div>
+
+          <div className="mt-6 overflow-hidden rounded-[24px] border border-[var(--line)]">
+            <div className="overflow-x-auto">
+              <table className="min-w-[1120px] w-full text-left text-sm">
+                <thead className="bg-[var(--surface-pill)] text-[var(--muted)]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Traveller</th>
+                    <th className="px-4 py-3 font-semibold">Slot</th>
+                    <th className="px-4 py-3 font-semibold">Guests</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Meeting point</th>
+                    <th className="px-4 py-3 font-semibold">Total</th>
+                    <th className="px-4 py-3 font-semibold">Requested</th>
+                    <th className="px-4 py-3 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bookings.length > 0 ? (
+                    bookings.map((booking) => {
+                      const isPending = booking.status === 'PENDING';
+                      const isUpdating = bookingActionId === booking.id;
+
+                      return (
+                        <tr
+                          key={booking.id}
+                          className="border-t border-[var(--line)] align-top"
+                        >
+                          <td className="px-4 py-4">
+                            <p className="font-semibold">{booking.tourist.fullName}</p>
+                            <p className="mt-1 text-xs text-[var(--muted)]">
+                              {booking.tourist.email}
+                            </p>
+                            {booking.message ? (
+                              <p className="mt-2 max-w-xs text-xs leading-6 text-[var(--muted)]">
+                                {booking.message}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-4">
+                            <p className="font-medium">
+                              {formatDateTime(booking.startAt)}
+                            </p>
+                            <p className="mt-1 text-xs text-[var(--muted)]">
+                              Until {formatDateTime(booking.endAt)}
+                            </p>
+                          </td>
+                          <td className="px-4 py-4 text-[var(--muted)]">
+                            {booking.guestCount}
+                          </td>
+                          <td className="px-4 py-4">
+                            <BookingStatusBadge status={booking.status} />
+                          </td>
+                          <td className="px-4 py-4 text-[var(--muted)]">
+                            {booking.meetingPoint ?? 'Not shared yet'}
+                          </td>
+                          <td className="px-4 py-4 text-[var(--muted)]">
+                            {formatCurrency(booking.totalAmount)}
+                          </td>
+                          <td className="px-4 py-4 text-[var(--muted)]">
+                            {formatDateTime(booking.createdAt)}
+                          </td>
+                          <td className="px-4 py-4">
+                            {isPending ? (
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleBookingAction(booking.id, 'CONFIRMED')
+                                  }
+                                  disabled={isUpdating}
+                                  className="button-success rounded-full px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {isUpdating ? 'Updating...' : 'Accept'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleBookingAction(booking.id, 'REJECTED')
+                                  }
+                                  disabled={isUpdating}
+                                  className="button-danger-soft rounded-full px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {isUpdating ? 'Updating...' : 'Reject'}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-[var(--muted)]">
+                                {booking.status === 'CONFIRMED' ||
+                                booking.status === 'IN_PROGRESS'
+                                  ? 'Already accepted'
+                                  : 'No action needed'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-4 py-8 text-center text-[var(--muted)]"
+                      >
+                        No traveller bookings yet. New requests will appear here once someone
+                        books this guide.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
       </section>
     </div>
   );
