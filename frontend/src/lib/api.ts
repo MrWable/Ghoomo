@@ -11,6 +11,12 @@ export type BookingStatus =
   | "IN_PROGRESS"
   | "COMPLETED"
   | "NO_SHOW";
+export type PaymentStatus =
+  | "PENDING"
+  | "ORDER_CREATED"
+  | "PAID"
+  | "FAILED"
+  | "REFUNDED";
 
 export type GuideAvailabilityBlock = {
   id: string;
@@ -148,6 +154,13 @@ export type Booking = {
   status: BookingStatus;
   message: string | null;
   totalAmount: number | null;
+  paymentStatus: PaymentStatus;
+  paymentGateway: string | null;
+  paymentOrderId: string | null;
+  paymentId: string | null;
+  paymentCurrency: string | null;
+  paymentAmount: number | null;
+  paymentPaidAt: string | null;
   travelDate: string;
   startAt: string;
   endAt: string;
@@ -252,6 +265,34 @@ export type UpdateBookingStatusInput = {
 export type CreateBookingReviewInput = {
   rating: number;
   comment?: string;
+};
+
+export type CreateBookingPaymentOrderInput = Record<string, never>;
+
+export type VerifyBookingPaymentInput = {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+};
+
+export type BookingPaymentOrder = {
+  booking: Booking;
+  payment: {
+    provider: "RAZORPAY";
+    keyId: string;
+    orderId: string;
+    amount: number;
+    currency: string;
+    merchantName: string;
+    description: string;
+    bookingStartAt: string;
+    bookingEndAt: string;
+    prefill: {
+      name: string;
+      email: string;
+      contact: string | null;
+    };
+  };
 };
 
 export type CreateGuideAvailabilityBlockInput = {
@@ -832,6 +873,56 @@ export async function updateBookingStatus(
   }
 
   return payload as Booking;
+}
+
+export async function createBookingPaymentOrder(
+  token: string,
+  bookingId: string,
+  input: CreateBookingPaymentOrderInput = {},
+) {
+  const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/payment-order`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const payload = (await response.json()) as
+    | { item: BookingPaymentOrder }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as { item: BookingPaymentOrder }).item;
+}
+
+export async function verifyBookingPayment(
+  token: string,
+  bookingId: string,
+  input: VerifyBookingPaymentInput,
+) {
+  const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/payment/verify`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const payload = (await response.json()) as
+    | { item: Booking }
+    | { message: string | string[] };
+
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload));
+  }
+
+  return (payload as { item: Booking }).item;
 }
 
 export async function createBookingReview(

@@ -100,8 +100,8 @@ export function CityCoverageRail({ cities }: { cities: City[] }) {
 
   const filteredCities = normalizedQuery
     ? cities.filter((city) => {
-        return city.name.toLowerCase().includes(normalizedQuery);
-      })
+      return city.name.toLowerCase().includes(normalizedQuery);
+    })
     : cities;
 
   return (
@@ -122,17 +122,17 @@ export function CityCoverageRail({ cities }: { cities: City[] }) {
         <div className="flex-1 min-w-[220px]">
           <p className="text-sm font-semibold">Search a city</p>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Find one live city fast, otherwise we show a launching-soon state.
+            Book your best guide in our city.
           </p>
         </div>
-        <label className="block w-full lg:w-[30rem] xl:w-[36rem]">
+        <label className="block w-full lg:w-[43rem] xl:w-[50rem]">
           <span className="sr-only">Search city</span>
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="field-control w-full rounded-2xl px-4 py-3 outline-none"
-            placeholder="Search Pune, Nashik, Kolhapur..."
+            placeholder="Search City..."
           />
         </label>
       </div>

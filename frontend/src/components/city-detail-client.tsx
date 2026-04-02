@@ -8,7 +8,6 @@ import {
   type CityDetail,
   type CreateCityInput,
   type Guide,
-  type UserRole,
   getGuidesForLoggedInCity,
   updateCityImage,
   updateCityPlaces,
@@ -76,13 +75,11 @@ export function CityDetailClient({
   initialCity,
 }: CityDetailClientProps) {
   const router = useRouter();
+  const [session] = useState(() => getStoredSession());
   const [city, setCity] = useState(initialCity);
   const [editablePlaces, setEditablePlaces] = useState<EditablePlace[]>(
     toEditablePlaces(initialCity),
   );
-  const [viewerRole, setViewerRole] = useState<UserRole | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [cityImagePreviewSrc, setCityImagePreviewSrc] = useState<string | null>(null);
   const [cityGuides, setCityGuides] = useState<Guide[]>([]);
@@ -90,23 +87,26 @@ export function CityDetailClient({
   const [isGuidesLoading, setIsGuidesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const viewerRole = session?.user.role ?? null;
+  const isAdmin = viewerRole === 'ADMIN';
+  const isLoggedIn = Boolean(session);
 
   useEffect(() => {
-    const session = getStoredSession();
-    setIsAdmin(session?.user.role === 'ADMIN');
-    setIsLoggedIn(Boolean(session));
-    setViewerRole(session?.user.role ?? null);
-
     if (!session) {
-      setCityGuides([]);
-      setGuidesError(null);
-      setIsGuidesLoading(false);
       return;
     }
 
     let isActive = true;
-    setIsGuidesLoading(true);
-    setGuidesError(null);
+
+    queueMicrotask(() => {
+      if (!isActive) {
+        return;
+      }
+
+      setCityGuides([]);
+      setGuidesError(null);
+      setIsGuidesLoading(true);
+    });
 
     void getGuidesForLoggedInCity(session.accessToken, initialCity.name)
       .then((guides) => {
@@ -136,7 +136,7 @@ export function CityDetailClient({
     return () => {
       isActive = false;
     };
-  }, [initialCity.name]);
+  }, [initialCity.name, session]);
 
   const canRequestBookings = viewerRole === 'USER' || viewerRole === 'TOURIST';
 
@@ -384,6 +384,7 @@ export function CityDetailClient({
           </Link>
           <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--muted)]">
             <Link href="/">Home</Link>
+            {canRequestBookings ? <Link href="/bookings">My bookings</Link> : null}
             {isLoggedIn ? null : (
               <>
                 <Link href="/register">Register</Link>

@@ -14,8 +14,19 @@ function getRoleLabel(session: AuthSession) {
       return 'My guide card';
     case 'USER':
     case 'TOURIST':
+      return 'My bookings';
     default:
       return null;
+  }
+}
+
+function getRoleHref(role: AuthSession['user']['role']) {
+  switch (role) {
+    case 'USER':
+    case 'TOURIST':
+      return '/bookings';
+    default:
+      return getPostLoginPath(role);
   }
 }
 
@@ -60,7 +71,7 @@ export function HomeHeaderNav() {
             {getDisplayRole(session.user.role)}
           </span>
           {getRoleLabel(session) ? (
-            <Link href={getPostLoginPath(session.user.role)}>
+            <Link href={getRoleHref(session.user.role)}>
               {getRoleLabel(session)}
             </Link>
           ) : null}

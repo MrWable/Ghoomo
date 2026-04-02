@@ -19,6 +19,7 @@ import {
   type BookingStatus,
   type Guide,
   type GuideAvailabilityBlock,
+  type PaymentStatus,
 } from '@/lib/api';
 import { clearSession, getStoredSession } from '@/lib/auth';
 
@@ -161,6 +162,31 @@ function BookingStatusBadge({ status }: { status: BookingStatus }) {
   return (
     <span className={`${className} rounded-full px-3 py-1 text-xs font-semibold`}>
       {formatBookingStatusLabel(status)}
+    </span>
+  );
+}
+
+function formatPaymentStatusLabel(status: PaymentStatus) {
+  return status
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
+  const className =
+    status === 'PAID'
+      ? 'status-badge'
+      : status === 'ORDER_CREATED'
+        ? 'warning-badge'
+        : status === 'FAILED'
+          ? 'border border-[var(--error-border)] bg-[var(--error-soft)] text-[var(--error-text)]'
+          : 'tag-soft';
+
+  return (
+    <span className={`${className} rounded-full px-3 py-1 text-xs font-semibold`}>
+      {formatPaymentStatusLabel(status)}
     </span>
   );
 }
@@ -1040,6 +1066,7 @@ export function GuideDashboard() {
                     <th className="px-4 py-3 font-semibold">Slot</th>
                     <th className="px-4 py-3 font-semibold">Guests</th>
                     <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Payment</th>
                     <th className="px-4 py-3 font-semibold">Meeting point</th>
                     <th className="px-4 py-3 font-semibold">Total</th>
                     <th className="px-4 py-3 font-semibold">Requested</th>
@@ -1081,6 +1108,14 @@ export function GuideDashboard() {
                           </td>
                           <td className="px-4 py-4">
                             <BookingStatusBadge status={booking.status} />
+                          </td>
+                          <td className="px-4 py-4">
+                            <PaymentStatusBadge status={booking.paymentStatus} />
+                            {booking.paymentPaidAt ? (
+                              <p className="mt-2 text-xs text-[var(--muted)]">
+                                Paid on {formatDateTime(booking.paymentPaidAt)}
+                              </p>
+                            ) : null}
                           </td>
                           <td className="px-4 py-4 text-[var(--muted)]">
                             {booking.meetingPoint ?? 'Not shared yet'}
@@ -1130,7 +1165,7 @@ export function GuideDashboard() {
                   ) : (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={9}
                         className="px-4 py-8 text-center text-[var(--muted)]"
                       >
                         No traveller bookings yet. New requests will appear here once someone

@@ -25,6 +25,14 @@ enum BookingStatus {
   NO_SHOW
 }
 
+enum PaymentStatus {
+  PENDING
+  ORDER_CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
 enum GuideVerificationStatus {
   PENDING
   APPROVED
@@ -117,6 +125,14 @@ model Booking {
   message        String?
   status         BookingStatus @default(PENDING)
   totalAmount    Int?
+  paymentStatus  PaymentStatus @default(PENDING)
+  paymentGateway String?
+  paymentOrderId String?
+  paymentId      String?
+  paymentSignature String?
+  paymentCurrency String?
+  paymentAmount  Int?
+  paymentPaidAt  DateTime?
   confirmedAt    DateTime?
   cancelledAt    DateTime?
   completedAt    DateTime?

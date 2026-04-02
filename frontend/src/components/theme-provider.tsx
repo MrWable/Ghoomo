@@ -24,53 +24,61 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+function getStoredCustomThemeState() {
+  if (typeof window === 'undefined') {
+    return DEFAULT_CUSTOM_THEME;
+  }
+
+  try {
+    return (
+      parseStoredCustomTheme(window.localStorage.getItem(CUSTOM_THEME_STORAGE_KEY)) ??
+      DEFAULT_CUSTOM_THEME
+    );
+  } catch {
+    return DEFAULT_CUSTOM_THEME;
+  }
+}
+
+function getStoredThemeState() {
+  if (typeof document !== 'undefined') {
+    const appliedTheme = document.documentElement.dataset.theme;
+
+    if (isThemeId(appliedTheme)) {
+      return appliedTheme;
+    }
+  }
+
+  if (typeof window === 'undefined') {
+    return DEFAULT_THEME;
+  }
+
+  try {
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+
+    if (isThemeId(storedTheme)) {
+      return storedTheme;
+    }
+  } catch { }
+
+  return DEFAULT_THEME;
+}
+
 export function ThemeProvider({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [theme, setThemeState] = useState<ThemeId>(DEFAULT_THEME);
+  const [theme, setThemeState] = useState<ThemeId>(getStoredThemeState);
   const [customTheme, setCustomThemeState] = useState<CustomThemeConfig>(
-    DEFAULT_CUSTOM_THEME,
+    getStoredCustomThemeState,
   );
 
   useEffect(() => {
-    const root = document.documentElement;
-
-    let storedCustomTheme = DEFAULT_CUSTOM_THEME;
-
-    try {
-      storedCustomTheme =
-        parseStoredCustomTheme(window.localStorage.getItem(CUSTOM_THEME_STORAGE_KEY)) ??
-        DEFAULT_CUSTOM_THEME;
-    } catch { }
-
-    setCustomThemeState(storedCustomTheme);
-
-    const appliedTheme = root.dataset.theme;
-
-    if (isThemeId(appliedTheme)) {
-      setThemeState(appliedTheme);
-      applyThemeToRoot(root, appliedTheme, storedCustomTheme);
-      return;
-    }
-
-    try {
-      const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-
-      if (isThemeId(storedTheme)) {
-        setThemeState(storedTheme);
-        applyThemeToRoot(root, storedTheme, storedCustomTheme);
-        return;
-      }
-    } catch { }
-
-    applyThemeToRoot(root, DEFAULT_THEME, storedCustomTheme);
-  }, []);
+    applyThemeToRoot(document.documentElement, theme, customTheme);
+  }, [customTheme, theme]);
 
   function setTheme(nextTheme: ThemeId) {
     setThemeState(nextTheme);
-    applyThemeToRoot(document.documentElement, nextTheme, customTheme);
 
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
@@ -82,7 +90,6 @@ export function ThemeProvider({
 
     setCustomThemeState(normalizedTheme);
     setThemeState(CUSTOM_THEME_ID);
-    applyThemeToRoot(document.documentElement, CUSTOM_THEME_ID, normalizedTheme);
 
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, CUSTOM_THEME_ID);

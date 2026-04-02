@@ -36,10 +36,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
     storeSession(session);
 
     const safeNextPath = nextPath && nextPath.startsWith("/") ? nextPath : null;
-    const redirectTo =
-      session.user.role === "ADMIN" && safeNextPath
-        ? safeNextPath
-        : getPostLoginPath(session.user.role);
+    const redirectTo = safeNextPath ?? getPostLoginPath(session.user.role);
 
     router.replace(redirectTo);
     router.refresh();
